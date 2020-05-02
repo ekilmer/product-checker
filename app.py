@@ -55,7 +55,6 @@ urldict = return_data("./data/products.json")
 def Amazon(url, hook):
     webhook_url = webhook_dict[hook]
     now = datetime.now()
-    current_time = now.strftime("%H:%M:%S")
     options = webdriver.ChromeOptions()
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
     options.add_argument('log-level=3')
@@ -73,11 +72,11 @@ def Amazon(url, hook):
         status_raw = driver.find_element_by_xpath("//div[@id='olpOfferList']")
         status_text = status_raw.text
         title_raw = driver.find_element_by_xpath("//h1[@class='a-size-large a-spacing-none']")
-        title_text = title_raw.text
+        title = title_raw.text
 
         if "Currently, there are no sellers that can deliver this item to your location." not in status_text:
             # print("[" + current_time + "] " + "In Stock: (Amazon.com) " + title + " - " + url)
-            slack_data = {'value1': "Amazon", 'value2': url}
+            slack_data = {'value1': "Amazon", 'value2': url, 'value3': title}
             post_url(url, webhook_url, slack_data)
         else:
             # print("[" + current_time + "] " + "Sold Out: (Amazon.com) " + title)
@@ -101,13 +100,12 @@ def Gamestop(url, hook):
     status_raw = driver.find_element_by_xpath("//div[@class='add-to-cart-buttons']")
     status_text = status_raw.text
     title_raw = driver.find_element_by_xpath("//h1[@class='product-name h2']")
+    title = title_raw.text
 
     if "ADD TO CART" in status_text:
-        # print("[" + current_time + "] " + "In Stock: (Gamestop.com) " + title + " - " + url)
-        slack_data = {'value1': "Gamestop", 'value2': url}
+        slack_data = {'value1': "Gamestop", 'value2': url, 'value3': title}
         post_url(url, webhook_url, slack_data)
     else:
-        # print("[" + current_time + "] " + "Sold Out: (Gamestop.com) " + title)
         stockdict.update({url: None})
     driver.quit()
 
@@ -117,12 +115,14 @@ def Target(url, hook):
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
     page = requests.get(url)
+    al = page.text
+    title = al[al.find('"twitter":{"title":') + 20 : al.find('","card')]
     if "Temporarily out of stock" in page.text:
         # print("[" + current_time + "] " + "Sold Out: (Target.com) " + title)
         stockdict.update({url: None})
     else:
         # print("[" + current_time + "] " + "In Stock: (Target.com) " + title + " - " + url)
-        slack_data = {'value1': "Target", 'value2': url}
+        slack_data = {'value1': "Target", 'value2': url, 'value3': title}
         post_url(url, webhook_url, slack_data)
 
 
@@ -153,45 +153,28 @@ def BestBuy(sku, hook):
     else:
         if stock_status == "ADD_TO_CART":
             # print("[" + current_time + "] " + "In Stock: (BestBuy.com) " + product_name + " - " + link)
-            slack_data = {'value1': "Best Buy", 'value2': link}
+            slack_data = {'value1': "Best Buy", 'value2': link, 'value3': product_name}
             post_url(link, webhook_url, slack_data)
 
 
 def Walmart(url, hook):
     webhook_url = webhook_dict[hook]
     now = datetime.now()
-    current_time = now.strftime("%H:%M:%S")
     page = requests.get(url)
     if page.status_code == 200:
         if "Add to cart" in page.text:
             # print("[" + current_time + "] " + "In Stock: (Walmart.com) " + url)
-            slack_data = {'value1': "Walmart", 'value2': url}
-            if stockdict.get(url) == None:
-                try:
-                    response = requests.post(
-                        webhook_url, data=json.dumps(slack_data),
-                        headers={'Content-Type': 'application/json'})
-                except:
-                    print("Webhook sending failed. Invalid URL configured.")
-            stockdict.update({url: 'True'})
-        else:
-            # print("[" + current_time + "] " + "Sold Out: (Walmart.com) " + url)
-            stockdict.update({url: None})
+            slack_data = {'value1': "Walmart", 'value2': url, 'value3': 'Some item'}
+            post_url(url, webhook_url, slack_data)
 
 
 def BH(url, hook):
     webhook_url = webhook_dict[hook]
-    now = datetime.now()
-    current_time = now.strftime("%H:%M:%S")
     page = requests.get(url)
     if page.status_code == 200:
         if "Add to Cart" in page.text:
-            # print("[" + current_time + "] " + "In Stock: (bhphotovideo.com) " + url)
-            slack_data = {'value1': "B&H", 'value2': url}
+            slack_data = {'value1': "B&H", 'value2': url, 'value3': "Some item"}
             post_url(url, webhook_url, slack_data)
-        else:
-            # print("[" + current_time + "] " + "Sold Out: (bhphotovideo.com) " + url)
-            stockdict.update({url: None})
 
 
 # Classify all the URLs by site
