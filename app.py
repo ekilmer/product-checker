@@ -200,7 +200,7 @@ class BestBuy:
             if stock_status == "ADD_TO_CART":
                 # print("[" + current_time + "] " + "In Stock: (BestBuy.com) " + product_name + " - " + link)
                 slack_data = {'value1': "Best Buy", 'value2': url}
-                post_url(url, webhook_url, slack_data)
+                post_url(link, webhook_url, slack_data)
 
 class Walmart:
 
