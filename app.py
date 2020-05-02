@@ -56,7 +56,9 @@ def Amazon(url, hook):
     options.add_argument(
         '--user-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36"')
     options.add_argument("headless")
-    driver = webdriver.Chrome(executable_path=driver_path, options=options)
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    driver = webdriver.Chrome(executable_path='/usr/lib/chromium-browser/chromedriver', options=options)
     driver.get(url)
 
     html = driver.page_source
@@ -92,7 +94,9 @@ def Gamestop(url, hook):
     options.add_argument(
         '--user-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36"')
     options.add_argument("headless")
-    driver = webdriver.Chrome(executable_path=driver_path, chrome_options=options)
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    driver = webdriver.Chrome(executable_path='/usr/lib/chromium-browser/chromedriver', chrome_options=options)
     driver.get(url)
 
     status_raw = driver.find_element_by_xpath("//div[@class='add-to-cart-buttons']")
