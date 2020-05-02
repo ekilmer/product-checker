@@ -25,8 +25,8 @@ amazonlist = []
 gamestoplist = []
 
 URL_CACHE_TIMEOUT = 60 * 60 * 6  # 6 hours
-THREAD_JITTER = 10
-CHECK_INTERVAL = 25  # Jitter across 25s and 35s
+THREAD_JITTER = 30
+CHECK_INTERVAL = 30  # Check once every [30-60s]
 
 def post_url(key, webhook_url, slack_data):
     val = stockdict.get(key, None)
