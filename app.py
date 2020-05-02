@@ -8,8 +8,6 @@ import json
 from datetime import datetime
 import urllib.parse as urlparse
 from urllib.parse import parse_qs
-# import webhook_settings
-# import product_settings
 from threading import Thread
 from random import randint
 from selenium import webdriver
@@ -24,45 +22,29 @@ bbdict = {}
 amazonlist = []
 gamestoplist = []
 
-URL_CACHE_TIMEOUT = 60 * 60 * 6  # 6 hours
+URL_CACHE_TIMEOUT = 60 * 60 * 3  # 3 hours
+ONE_HOUR = 60*60
 THREAD_JITTER = 90
 CHECK_INTERVAL = 30  # Check once every [30-90s]
 
+
 def post_url(key, webhook_url, slack_data):
     val = stockdict.get(key, None)
+    # We only want to be notified once every 3 hours or so
     if val is None or time.time() - val > URL_CACHE_TIMEOUT:
-        response = requests.post(
+        requests.post(
             webhook_url, data=json.dumps(slack_data),
             headers={'Content-Type': 'application/json'})
         stockdict.update({key: time.time()})
+        #
+        time.sleep(ONE_HOUR)
 
-
-#Function for start-up menu
-
-def menu():
-    webhook_dict = return_data("./data/webhooks.json")
-    urldict = return_data("./data/products.json")
-    print("Select an Option: \n 1: Edit Webhooks \n 2: Edit Product URLs \n 3: Run the product tracker \n")
-    val = input("Enter # (1-3)")
-    if val == "1":
-        webhook_settings.main()
-        menu()
-    elif val == "2":
-        product_settings.main()
-        menu()
-    elif val == "3":
-        print("\n Starting Product Tracker! \n")
-    else:
-        menu()
 
 def return_data(path):
     with open(path,"r") as file:
         data = json.load(file)
     file.close()
     return data
-
-#Prompt the user at startup
-menu()
 
 #Only declare the webhook and product lists after the menu has been passed so that changes made from menu selections are up to date
 webhook_dict = return_data("./data/webhooks.json")
@@ -93,16 +75,11 @@ class Amazon:
             status_text = status_raw.text
             title_raw = driver.find_element_by_xpath("//h1[@class='a-size-large a-spacing-none']")
             title_text = title_raw.text
-            title = title_text
 
             if "Currently, there are no sellers that can deliver this item to your location." not in status_text:
                 # print("[" + current_time + "] " + "In Stock: (Amazon.com) " + title + " - " + url)
                 slack_data = {'value1': "Amazon", 'value2': url}
-                if stockdict.get(url) == None:
-                    response = requests.post(
-                    webhook_url, data=json.dumps(slack_data),
-                    headers={'Content-Type': 'application/json'})
-                stockdict.update({url: 'True'})
+                post_url(url, webhook_url, slack_data)
             else:
                 # print("[" + current_time + "] " + "Sold Out: (Amazon.com) " + title)
                 stockdict.update({url: None})
@@ -128,17 +105,11 @@ class Gamestop:
         status_raw = driver.find_element_by_xpath("//div[@class='add-to-cart-buttons']")
         status_text = status_raw.text
         title_raw = driver.find_element_by_xpath("//h1[@class='product-name h2']")
-        title_text = title_raw.text
-        title = title_text
 
         if "ADD TO CART" in status_text:
             # print("[" + current_time + "] " + "In Stock: (Gamestop.com) " + title + " - " + url)
             slack_data = {'value1': "Gamestop", 'value2': url}
-            if stockdict.get(url) == None:
-                response = requests.post(
-                webhook_url, data=json.dumps(slack_data),
-                headers={'Content-Type': 'application/json'})
-            stockdict.update({url: 'True'})
+            post_url(url, webhook_url, slack_data)
         else:
             # print("[" + current_time + "] " + "Sold Out: (Gamestop.com) " + title)
             stockdict.update({url: None})
@@ -151,9 +122,6 @@ class Target:
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
         page = requests.get(url)
-        al = page.text
-        title = al[al.find('"twitter":{"title":') + 20 : al.find('","card')]
-        #print(title)
         if "Temporarily out of stock" in page.text:
             # print("[" + current_time + "] " + "Sold Out: (Target.com) " + title)
             stockdict.update({url: None})
@@ -161,7 +129,6 @@ class Target:
             # print("[" + current_time + "] " + "In Stock: (Target.com) " + title + " - " + url)
             slack_data = {'value1': "Target", 'value2': url}
             post_url(url, webhook_url, slack_data)
-        #print(stockdict)
 
 class BestBuy:
 
@@ -253,11 +220,9 @@ for url in urldict:
    #Target URL Detection
     elif "gamestop.com" in url:
         gamestoplist.append(url)
-        # print("Gamestop URL detected using Webhook destination " + hook)
 
     #BestBuy URL Detection
     elif "bestbuy.com" in url:
-        # print("BestBuy URL detected using Webhook destination " + hook)
         parsed = urlparse.urlparse(url)
         sku = parse_qs(parsed.query)['skuId']
         sku = sku[0]
@@ -279,17 +244,14 @@ for url in urldict:
     #Target URL Detection
     elif "target.com" in url:
         targetlist.append(url)
-        # print("Target URL detected using Webhook destination " + hook)
 
     #Walmart URL Detection
     elif "walmart.com" in url:
         walmartlist.append(url)
-        # print("Walmart URL detected using Webhook destination " + hook)
 
     #B&H Photo URL Detection
     elif "bhphotovideo.com" in url:
         bhlist.append(url)
-        # print("B&H URL detected using Webhook destination " + hook)
 
 #set all URLs to be "out of stock" to begin
 for url in urldict:
