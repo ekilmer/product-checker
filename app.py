@@ -12,7 +12,8 @@ from threading import Thread
 from random import randint
 from selenium import webdriver
 from chromedriver_py import binary_path as driver_path
-stockdict = {} # Map of URLs to the last time they were seen in stock
+
+stockdict = {}  # Map of URLs to the last time they were seen in stock
 sku_dict = {}
 bestbuylist = []
 targetlist = []
@@ -23,7 +24,7 @@ amazonlist = []
 gamestoplist = []
 
 URL_CACHE_TIMEOUT = 60 * 60 * 3  # 3 hours
-ONE_HOUR = 60*60
+ONE_HOUR = 60 * 60
 THREAD_JITTER = 90
 CHECK_INTERVAL = 30  # Check once every [30-90s]
 
@@ -36,180 +37,169 @@ def post_url(key, webhook_url, slack_data):
             webhook_url, data=json.dumps(slack_data),
             headers={'Content-Type': 'application/json'})
         stockdict.update({key: time.time()})
-        #
         time.sleep(ONE_HOUR)
 
 
 def return_data(path):
-    with open(path,"r") as file:
+    with open(path, "r") as file:
         data = json.load(file)
     file.close()
     return data
 
-#Only declare the webhook and product lists after the menu has been passed so that changes made from menu selections are up to date
+
+# Only declare the webhook and product lists after the menu has been passed so that changes made from menu selections are up to date
 webhook_dict = return_data("./data/webhooks.json")
 urldict = return_data("./data/products.json")
 
-#Declare classes for the webpage scraping functionality
 
-class Amazon:
+def Amazon(url, hook):
+    webhook_url = webhook_dict[hook]
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    options = webdriver.ChromeOptions()
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    options.add_argument('log-level=3')
+    options.add_argument('--ignore-certificate-errors')
+    options.add_argument(
+        '--user-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36"')
+    options.add_argument("headless")
+    driver = webdriver.Chrome(executable_path=driver_path, options=options)
+    driver.get(url)
 
-    def __init__(self, url, hook):
-        webhook_url = webhook_dict[hook]
-        now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
-        options = webdriver.ChromeOptions()
-        options.add_experimental_option('excludeSwitches', ['enable-logging'])
-        options.add_argument('log-level=3')
-        options.add_argument('--ignore-certificate-errors')
-        options.add_argument('--user-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36"')
-        options.add_argument("headless")
-        driver = webdriver.Chrome(executable_path=driver_path, options=options)
-        driver.get(url)
-
-        html = driver.page_source
-        if "To discuss automated access to Amazon data please contact api-services-support@amazon.com." in html:
-            print("Amazons Bot Protection is preventing this call.")
-        else:
-            status_raw = driver.find_element_by_xpath("//div[@id='olpOfferList']")
-            status_text = status_raw.text
-            title_raw = driver.find_element_by_xpath("//h1[@class='a-size-large a-spacing-none']")
-            title_text = title_raw.text
-
-            if "Currently, there are no sellers that can deliver this item to your location." not in status_text:
-                # print("[" + current_time + "] " + "In Stock: (Amazon.com) " + title + " - " + url)
-                slack_data = {'value1': "Amazon", 'value2': url}
-                post_url(url, webhook_url, slack_data)
-            else:
-                # print("[" + current_time + "] " + "Sold Out: (Amazon.com) " + title)
-                stockdict.update({url: None})
-        driver.quit()
-
-class Gamestop:
-
-    def __init__(self, url, hook):
-        webhook_url = webhook_dict[hook]
-        now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
-        options = webdriver.ChromeOptions()
-        options.add_experimental_option('excludeSwitches', ['enable-logging'])
-        options.add_argument('log-level=3')
-        options.add_argument('--ignore-certificate-errors')
-        options.add_argument('--user-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36"')
-        options.add_argument("headless")
-        driver = webdriver.Chrome(executable_path=driver_path, chrome_options=options)
-        driver.get(url)
-
-        html = driver.page_source
-
-        status_raw = driver.find_element_by_xpath("//div[@class='add-to-cart-buttons']")
+    html = driver.page_source
+    if "To discuss automated access to Amazon data please contact api-services-support@amazon.com." in html:
+        print("Amazons Bot Protection is preventing this call.")
+    else:
+        status_raw = driver.find_element_by_xpath("//div[@id='olpOfferList']")
         status_text = status_raw.text
-        title_raw = driver.find_element_by_xpath("//h1[@class='product-name h2']")
+        title_raw = driver.find_element_by_xpath("//h1[@class='a-size-large a-spacing-none']")
+        title_text = title_raw.text
 
-        if "ADD TO CART" in status_text:
-            # print("[" + current_time + "] " + "In Stock: (Gamestop.com) " + title + " - " + url)
-            slack_data = {'value1': "Gamestop", 'value2': url}
+        if "Currently, there are no sellers that can deliver this item to your location." not in status_text:
+            # print("[" + current_time + "] " + "In Stock: (Amazon.com) " + title + " - " + url)
+            slack_data = {'value1': "Amazon", 'value2': url}
             post_url(url, webhook_url, slack_data)
         else:
-            # print("[" + current_time + "] " + "Sold Out: (Gamestop.com) " + title)
+            # print("[" + current_time + "] " + "Sold Out: (Amazon.com) " + title)
             stockdict.update({url: None})
-        driver.quit()
+    driver.quit()
 
-class Target:
 
-    def __init__(self, url, hook):
-        webhook_url = webhook_dict[hook]
-        now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
-        page = requests.get(url)
-        if "Temporarily out of stock" in page.text:
-            # print("[" + current_time + "] " + "Sold Out: (Target.com) " + title)
-            stockdict.update({url: None})
-        else:
-            # print("[" + current_time + "] " + "In Stock: (Target.com) " + title + " - " + url)
-            slack_data = {'value1': "Target", 'value2': url}
-            post_url(url, webhook_url, slack_data)
+def Gamestop(url, hook):
+    webhook_url = webhook_dict[hook]
+    now = datetime.now()
+    options = webdriver.ChromeOptions()
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    options.add_argument('log-level=3')
+    options.add_argument('--ignore-certificate-errors')
+    options.add_argument(
+        '--user-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36"')
+    options.add_argument("headless")
+    driver = webdriver.Chrome(executable_path=driver_path, chrome_options=options)
+    driver.get(url)
 
-class BestBuy:
+    status_raw = driver.find_element_by_xpath("//div[@class='add-to-cart-buttons']")
+    status_text = status_raw.text
+    title_raw = driver.find_element_by_xpath("//h1[@class='product-name h2']")
 
-    def __init__(self, sku, hook):
-        self.sku = sku
-        self.hook = hook
-        webhook_url = webhook_dict[hook]
-        now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
-        url = "https://www.bestbuy.com/api/tcfb/model.json?paths=%5B%5B%22shop%22%2C%22scds%22%2C%22v2%22%2C%22page%22%2C%22tenants%22%2C%22bbypres%22%2C%22pages%22%2C%22globalnavigationv5sv%22%2C%22header%22%5D%2C%5B%22shop%22%2C%22buttonstate%22%2C%22v5%22%2C%22item%22%2C%22skus%22%2C" + sku + "%2C%22conditions%22%2C%22NONE%22%2C%22destinationZipCode%22%2C%22%2520%22%2C%22storeId%22%2C%22%2520%22%2C%22context%22%2C%22cyp%22%2C%22addAll%22%2C%22false%22%5D%5D&method=get"
-        headers2 = {
+    if "ADD TO CART" in status_text:
+        # print("[" + current_time + "] " + "In Stock: (Gamestop.com) " + title + " - " + url)
+        slack_data = {'value1': "Gamestop", 'value2': url}
+        post_url(url, webhook_url, slack_data)
+    else:
+        # print("[" + current_time + "] " + "Sold Out: (Gamestop.com) " + title)
+        stockdict.update({url: None})
+    driver.quit()
+
+
+def Target(url, hook):
+    webhook_url = webhook_dict[hook]
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    page = requests.get(url)
+    if "Temporarily out of stock" in page.text:
+        # print("[" + current_time + "] " + "Sold Out: (Target.com) " + title)
+        stockdict.update({url: None})
+    else:
+        # print("[" + current_time + "] " + "In Stock: (Target.com) " + title + " - " + url)
+        slack_data = {'value1': "Target", 'value2': url}
+        post_url(url, webhook_url, slack_data)
+
+
+def BestBuy(sku, hook):
+    webhook_url = webhook_dict[hook]
+    now = datetime.now()
+    url = "https://www.bestbuy.com/api/tcfb/model.json?paths=%5B%5B%22shop%22%2C%22scds%22%2C%22v2%22%2C%22page%22%2C%22tenants%22%2C%22bbypres%22%2C%22pages%22%2C%22globalnavigationv5sv%22%2C%22header%22%5D%2C%5B%22shop%22%2C%22buttonstate%22%2C%22v5%22%2C%22item%22%2C%22skus%22%2C" + sku + "%2C%22conditions%22%2C%22NONE%22%2C%22destinationZipCode%22%2C%22%2520%22%2C%22storeId%22%2C%22%2520%22%2C%22context%22%2C%22cyp%22%2C%22addAll%22%2C%22false%22%5D%5D&method=get"
+    headers2 = {
         "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
         "accept-encoding": "gzip, deflate, br",
         "accept-language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
         "cache-control": "max-age=0",
         "upgrade-insecure-requests": "1",
         "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.69 Safari/537.36"
-        }
-        page = requests.get(url, headers=headers2)
-        link = "https://www.bestbuy.com/site/" + sku + ".p?skuId=" + sku
-        al = page.text
-        search_string = '"skuId":"' + sku + '","buttonState":"'
-        stock_status = al[al.find(search_string) + 33 : al.find('","displayText"')]
-        product_name = sku_dict.get(sku)
-        if stock_status == "SOLD_OUT":
-            # print("[" + current_time + "] " + "Sold Out: (BestBuy.com) " + product_name)
-            stockdict.update({sku: None})
-        elif stock_status == "CHECK_STORES":
-            # print(product_name + " sold out @ BestBuy (check stores status)")
-            stockdict.update({sku: None})
-        else:
-            if stock_status == "ADD_TO_CART":
-                # print("[" + current_time + "] " + "In Stock: (BestBuy.com) " + product_name + " - " + link)
-                slack_data = {'value1': "Best Buy", 'value2': link}
-                post_url(link, webhook_url, slack_data)
+    }
+    page = requests.get(url, headers=headers2)
+    link = "https://www.bestbuy.com/site/" + sku + ".p?skuId=" + sku
+    al = page.text
+    search_string = '"skuId":"' + sku + '","buttonState":"'
+    stock_status = al[al.find(search_string) + 33: al.find('","displayText"')]
+    product_name = sku_dict.get(sku)
+    if stock_status == "SOLD_OUT":
+        # print("[" + current_time + "] " + "Sold Out: (BestBuy.com) " + product_name)
+        stockdict.update({sku: None})
+    elif stock_status == "CHECK_STORES":
+        # print(product_name + " sold out @ BestBuy (check stores status)")
+        stockdict.update({sku: None})
+    else:
+        if stock_status == "ADD_TO_CART":
+            # print("[" + current_time + "] " + "In Stock: (BestBuy.com) " + product_name + " - " + link)
+            slack_data = {'value1': "Best Buy", 'value2': link}
+            post_url(link, webhook_url, slack_data)
 
-class Walmart:
 
-    def __init__(self, url, hook):
-        webhook_url = webhook_dict[hook]
-        now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
-        page = requests.get(url)
-        if page.status_code == 200:
-            if "Add to cart" in page.text:
-                # print("[" + current_time + "] " + "In Stock: (Walmart.com) " + url)
-                slack_data = {'value1': "Walmart", 'value2': url}
-                if stockdict.get(url) == None:
-                    try:
-                        response = requests.post(
+def Walmart(url, hook):
+    webhook_url = webhook_dict[hook]
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    page = requests.get(url)
+    if page.status_code == 200:
+        if "Add to cart" in page.text:
+            # print("[" + current_time + "] " + "In Stock: (Walmart.com) " + url)
+            slack_data = {'value1': "Walmart", 'value2': url}
+            if stockdict.get(url) == None:
+                try:
+                    response = requests.post(
                         webhook_url, data=json.dumps(slack_data),
                         headers={'Content-Type': 'application/json'})
-                    except:
-                        print("Webhook sending failed. Invalid URL configured.")
-                stockdict.update({url: 'True'})
-            else:
-                # print("[" + current_time + "] " + "Sold Out: (Walmart.com) " + url)
-                stockdict.update({url: None})
+                except:
+                    print("Webhook sending failed. Invalid URL configured.")
+            stockdict.update({url: 'True'})
+        else:
+            # print("[" + current_time + "] " + "Sold Out: (Walmart.com) " + url)
+            stockdict.update({url: None})
 
-class BH:
 
-    def __init__(self, url, hook):
-        webhook_url = webhook_dict[hook]
-        now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
-        page = requests.get(url)
-        if page.status_code == 200:
-            if "Add to Cart" in page.text:
-                # print("[" + current_time + "] " + "In Stock: (bhphotovideo.com) " + url)
-                slack_data = {'value1': "B&H", 'value2': url}
-                post_url(url, webhook_url, slack_data)
-            else:
-                # print("[" + current_time + "] " + "Sold Out: (bhphotovideo.com) " + url)
-                stockdict.update({url: None})
+def BH(url, hook):
+    webhook_url = webhook_dict[hook]
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    page = requests.get(url)
+    if page.status_code == 200:
+        if "Add to Cart" in page.text:
+            # print("[" + current_time + "] " + "In Stock: (bhphotovideo.com) " + url)
+            slack_data = {'value1': "B&H", 'value2': url}
+            post_url(url, webhook_url, slack_data)
+        else:
+            # print("[" + current_time + "] " + "Sold Out: (bhphotovideo.com) " + url)
+            stockdict.update({url: None})
 
-#Classify all the URLs by site
+
+# Classify all the URLs by site
 
 for url in urldict:
-    hook = urldict[url] #get the hook for the url so it can be passed in to the per-site lists being generated below
+    hook = urldict[url]  # get the hook for the url so it can be passed in to the per-site lists being generated below
 
-    #Amazon URL Detection
+    # Amazon URL Detection
     if "amazon.com" in url:
         if "offer-listing" in url:
             amazonlist.append(url)
@@ -217,50 +207,51 @@ for url in urldict:
         else:
             print("Invalid Amazon link detected. Please use the Offer Listing page.")
 
-   #Target URL Detection
+    # Target URL Detection
     elif "gamestop.com" in url:
         gamestoplist.append(url)
 
-    #BestBuy URL Detection
+    # BestBuy URL Detection
     elif "bestbuy.com" in url:
         parsed = urlparse.urlparse(url)
         sku = parse_qs(parsed.query)['skuId']
         sku = sku[0]
         bestbuylist.append(sku)
         headers = {
-        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-        "accept-encoding": "gzip, deflate, br",
-        "accept-language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
-        "cache-control": "max-age=0",
-        "upgrade-insecure-requests": "1",
-        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.69 Safari/537.36"
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+            "accept-encoding": "gzip, deflate, br",
+            "accept-language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
+            "cache-control": "max-age=0",
+            "upgrade-insecure-requests": "1",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.69 Safari/537.36"
         }
         page = requests.get(url, headers=headers)
         al = page.text
-        title = al[al.find('<title >') + 8 : al.find(' - Best Buy</title>')]
+        title = al[al.find('<title >') + 8: al.find(' - Best Buy</title>')]
         sku_dict.update({sku: title})
         bbdict.update({sku: hook})
 
-    #Target URL Detection
+    # Target URL Detection
     elif "target.com" in url:
         targetlist.append(url)
 
-    #Walmart URL Detection
+    # Walmart URL Detection
     elif "walmart.com" in url:
         walmartlist.append(url)
 
-    #B&H Photo URL Detection
+    # B&H Photo URL Detection
     elif "bhphotovideo.com" in url:
         bhlist.append(url)
 
-#set all URLs to be "out of stock" to begin
+# set all URLs to be "out of stock" to begin
 for url in urldict:
     stockdict.update({url: None})
-#set all SKUs to be "out of stock" to begin
+# set all SKUs to be "out of stock" to begin
 for sku in sku_dict:
     stockdict.update({sku: None})
 
-#DECLARE SITE FUNCTIONS
+
+# DECLARE SITE FUNCTIONS
 
 def amzfunc(url):
     while True:
@@ -271,6 +262,7 @@ def amzfunc(url):
             print("Some error ocurred parsing Amazon: ", e)
         time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
 
+
 def gamestopfunc(url):
     while True:
         hook = urldict[url]
@@ -279,6 +271,7 @@ def gamestopfunc(url):
         except Exception as e:
             print("Some error ocurred parsing Gamestop: ", e)
         time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
+
 
 def targetfunc(url):
     while True:
@@ -289,6 +282,7 @@ def targetfunc(url):
             print("Some error ocurred parsing Target: ", e)
         time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
 
+
 def bhfunc(url):
     while True:
         hook = urldict[url]
@@ -298,6 +292,7 @@ def bhfunc(url):
             print("Some error ocurred parsing BH Photo: ", e)
         time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
 
+
 def bestbuyfunc(sku):
     while True:
         hook = bbdict[sku]
@@ -306,6 +301,7 @@ def bestbuyfunc(sku):
         except Exception as e:
             print("Some error ocurred parsing Best Buy: ", e)
         time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
+
 
 def walmartfunc(url):
     while True:
