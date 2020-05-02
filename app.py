@@ -23,22 +23,16 @@ bbdict = {}
 amazonlist = []
 gamestoplist = []
 
-URL_CACHE_TIMEOUT = 60 * 60 * 3  # 3 hours
-ONE_HOUR = 60 * 60
+# ITEM_FOUND_TIMEOUT = 60 * 60 * 3  # 3 hours
+ITEM_FOUND_TIMEOUT = 10
 THREAD_JITTER = 90
 CHECK_INTERVAL = 30  # Check once every [30-90s]
 
 
 def post_url(key, webhook_url, slack_data):
-    val = stockdict.get(key, None)
-    # We only want to be notified once every 3 hours or so
-    if val is None or time.time() - val > URL_CACHE_TIMEOUT:
-        requests.post(
-            webhook_url, data=json.dumps(slack_data),
-            headers={'Content-Type': 'application/json'})
-        stockdict.update({key: time.time()})
-        time.sleep(ONE_HOUR)
-
+    requests.post(
+        webhook_url, data=json.dumps(slack_data),
+        headers={'Content-Type': 'application/json'})
 
 def return_data(path):
     with open(path, "r") as file:
@@ -74,14 +68,18 @@ def Amazon(url, hook):
         title_raw = driver.find_element_by_xpath("//h1[@class='a-size-large a-spacing-none']")
         title = title_raw.text
 
-        if "Currently, there are no sellers that can deliver this item to your location." not in status_text:
-            # print("[" + current_time + "] " + "In Stock: (Amazon.com) " + title + " - " + url)
-            slack_data = {'value1': "Amazon", 'value2': url, 'value3': title}
-            post_url(url, webhook_url, slack_data)
-        else:
-            # print("[" + current_time + "] " + "Sold Out: (Amazon.com) " + title)
-            stockdict.update({url: None})
-    driver.quit()
+        try:
+            if "Currently, there are no sellers that can deliver this item to your location." not in status_text:
+                # print("[" + current_time + "] " + "In Stock: (Amazon.com) " + title + " - " + url)
+                slack_data = {'value1': "Amazon", 'value2': url, 'value3': title}
+                post_url(url, webhook_url, slack_data)
+                return True
+            else:
+                # print("[" + current_time + "] " + "Sold Out: (Amazon.com) " + title)
+                stockdict.update({url: None})
+                return False
+        finally:
+            driver.quit()
 
 
 def Gamestop(url, hook):
@@ -102,28 +100,28 @@ def Gamestop(url, hook):
     title_raw = driver.find_element_by_xpath("//h1[@class='product-name h2']")
     title = title_raw.text
 
-    if "ADD TO CART" in status_text:
-        slack_data = {'value1': "Gamestop", 'value2': url, 'value3': title}
-        post_url(url, webhook_url, slack_data)
-    else:
-        stockdict.update({url: None})
-    driver.quit()
+    try:
+        if "ADD TO CART" in status_text:
+            slack_data = {'value1': "Gamestop", 'value2': url, 'value3': title}
+            post_url(url, webhook_url, slack_data)
+            return True
+        return False
+    finally:
+        driver.quit()
 
 
 def Target(url, hook):
     webhook_url = webhook_dict[hook]
     now = datetime.now()
-    current_time = now.strftime("%H:%M:%S")
     page = requests.get(url)
     al = page.text
     title = al[al.find('"twitter":{"title":') + 20 : al.find('","card')]
-    if "Temporarily out of stock" in page.text:
-        # print("[" + current_time + "] " + "Sold Out: (Target.com) " + title)
-        stockdict.update({url: None})
-    else:
+    if "Temporarily out of stock" not in page.text:
         # print("[" + current_time + "] " + "In Stock: (Target.com) " + title + " - " + url)
         slack_data = {'value1': "Target", 'value2': url, 'value3': title}
         post_url(url, webhook_url, slack_data)
+        return True
+    return False
 
 
 def BestBuy(sku, hook):
@@ -155,6 +153,8 @@ def BestBuy(sku, hook):
             # print("[" + current_time + "] " + "In Stock: (BestBuy.com) " + product_name + " - " + link)
             slack_data = {'value1': "Best Buy", 'value2': link, 'value3': product_name}
             post_url(link, webhook_url, slack_data)
+            return True
+    return False
 
 
 def Walmart(url, hook):
@@ -166,6 +166,8 @@ def Walmart(url, hook):
             # print("[" + current_time + "] " + "In Stock: (Walmart.com) " + url)
             slack_data = {'value1': "Walmart", 'value2': url, 'value3': 'Some item'}
             post_url(url, webhook_url, slack_data)
+            return True
+        return False
 
 
 def BH(url, hook):
@@ -175,6 +177,8 @@ def BH(url, hook):
         if "Add to Cart" in page.text:
             slack_data = {'value1': "B&H", 'value2': url, 'value3': "Some item"}
             post_url(url, webhook_url, slack_data)
+            return True
+        return False
 
 
 # Classify all the URLs by site
@@ -240,37 +244,46 @@ def amzfunc(url):
     while True:
         hook = urldict[url]
         try:
-            Amazon(url, hook)
+            if Amazon(url, hook):
+                 time.sleep(ITEM_FOUND_TIMEOUT)
+            else:
+                time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
         except Exception as e:
             print("Some error ocurred parsing Amazon: ", e)
-        time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
 
 
 def gamestopfunc(url):
     while True:
         hook = urldict[url]
         try:
-            Gamestop(url, hook)
+            if Gamestop(url, hook):
+                time.sleep(ITEM_FOUND_TIMEOUT)
+            else:
+                time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
         except Exception as e:
             print("Some error ocurred parsing Gamestop: ", e)
-        time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
 
 
 def targetfunc(url):
     while True:
         hook = urldict[url]
         try:
-            Target(url, hook)
+            if Target(url, hook):
+                time.sleep(ITEM_FOUND_TIMEOUT)
+            else:
+                time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
         except Exception as e:
             print("Some error ocurred parsing Target: ", e)
-        time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
 
 
 def bhfunc(url):
     while True:
         hook = urldict[url]
         try:
-            BH(url, hook)
+            if BH(url, hook):
+                time.sleep(ITEM_FOUND_TIMEOUT)
+            else:
+                time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
         except Exception as e:
             print("Some error ocurred parsing BH Photo: ", e)
         time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
@@ -280,17 +293,22 @@ def bestbuyfunc(sku):
     while True:
         hook = bbdict[sku]
         try:
-            BestBuy(sku, hook)
+            if BestBuy(sku, hook):
+                time.sleep(ITEM_FOUND_TIMEOUT)
+            else:
+                time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
         except Exception as e:
             print("Some error ocurred parsing Best Buy: ", e)
-        time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
 
 
 def walmartfunc(url):
     while True:
         hook = urldict[url]
         try:
-            Walmart(url, hook)
+            if Walmart(url, hook):
+                time.sleep(ITEM_FOUND_TIMEOUT)
+            else:
+                time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
         except Exception as e:
             print("Some error ocurred parsing WalMart: ", e)
         time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
@@ -306,7 +324,7 @@ for url in amazonlist:
 for url in gamestoplist:
     t = Thread(target=gamestopfunc, args=(url,))
     t.start()
-    time.sleep(0.5)
+    time.sleep(1)
 
 for url in targetlist:
     t = Thread(target=targetfunc, args=(url,))
