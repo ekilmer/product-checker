@@ -71,8 +71,6 @@ urldict = return_data("./data/products.json")
 class Amazon:
 
     def __init__(self, url, hook):
-        self.url = url
-        self.hook = hook
         webhook_url = webhook_dict[hook]
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
@@ -111,8 +109,6 @@ class Amazon:
 class Gamestop:
 
     def __init__(self, url, hook):
-        self.url = url
-        self.hook = hook
         webhook_url = webhook_dict[hook]
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
@@ -149,8 +145,6 @@ class Gamestop:
 class Target:
 
     def __init__(self, url, hook):
-        self.url = url
-        self.hook = hook
         webhook_url = webhook_dict[hook]
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
@@ -205,8 +199,6 @@ class BestBuy:
 class Walmart:
 
     def __init__(self, url, hook):
-        self.url = url
-        self.hook = hook
         webhook_url = webhook_dict[hook]
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
@@ -230,8 +222,6 @@ class Walmart:
 class BH:
 
     def __init__(self, url, hook):
-        self.url = url
-        self.hook = hook
         webhook_url = webhook_dict[hook]
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
