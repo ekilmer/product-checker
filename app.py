@@ -86,7 +86,7 @@ class Amazon:
 
             if "Currently, there are no sellers that can deliver this item to your location." not in status_text:
                 print("[" + current_time + "] " + "In Stock: (Amazon.com) " + title + " - " + url)
-                slack_data = {'content': current_time + " " + title + " in stock at Amazon - " + url}
+                slack_data = {'value1': "Amazon", 'value2': url}
                 if stockdict.get(url) == 'False':
                     response = requests.post(
                     webhook_url, data=json.dumps(slack_data),
@@ -124,7 +124,7 @@ class Gamestop:
 
         if "ADD TO CART" in status_text:
             print("[" + current_time + "] " + "In Stock: (Gamestop.com) " + title + " - " + url)
-            slack_data = {'content': current_time + " " + title + " in stock at Gamestop - " + url}
+            slack_data = {'value1': "Gamestop", 'value2': url}
             if stockdict.get(url) == 'False':
                 response = requests.post(
                 webhook_url, data=json.dumps(slack_data),
@@ -152,7 +152,7 @@ class Target:
             stockdict.update({url: 'False'})
         else: 
             print("[" + current_time + "] " + "In Stock: (Target.com) " + title + " - " + url)
-            slack_data = {'content': current_time + " " + title + " in stock at Target - " + url}
+            slack_data = {'value1': "Target", 'value2': url}
             if stockdict.get(url) == 'False':
                 response = requests.post(
                 webhook_url, data=json.dumps(slack_data),
@@ -192,7 +192,7 @@ class BestBuy:
         else: 
             if stock_status == "ADD_TO_CART":
                 print("[" + current_time + "] " + "In Stock: (BestBuy.com) " + product_name + " - " + link)
-                slack_data = {'content': current_time + " " + product_name + " In Stock @ BestBuy " + link}
+                slack_data = {'value1': "Best Buy", 'value2': url}
                 if stockdict.get(sku) == 'False':
                     response = requests.post(
                     webhook_url, data=json.dumps(slack_data),
@@ -212,7 +212,7 @@ class Walmart:
         if page.status_code == 200:
             if "Add to cart" in page.text:
                 print("[" + current_time + "] " + "In Stock: (Walmart.com) " + url)
-                slack_data = {'content': current_time + " " + url + " in stock at Walmart"}
+                slack_data = {'value1': "Walmart", 'value2': url}
                 if stockdict.get(url) == 'False':
                     try:
                         response = requests.post(
@@ -237,7 +237,7 @@ class BH:
         if page.status_code == 200:
             if "Add to Cart" in page.text:
                 print("[" + current_time + "] " + "In Stock: (bhphotovideo.com) " + url)
-                slack_data = {'content': current_time + " " + url + " in stock at B&H"}
+                slack_data = {'value1': "B&H", 'value2': url}
                 if stockdict.get(url) == 'False':
                     response = requests.post(
                                              webhook_url, data=json.dumps(slack_data),

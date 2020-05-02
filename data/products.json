@@ -1,1 +1,16 @@
-{"https://www.bestbuy.com/site/oculus-rift-s-pc-powered-vr-gaming-headset-black/6343150.p?skuId=6343150": "webhook_1", "https://www.walmart.com/ip/Nintendo-Switch-Console-with-Neon-Blue-Red-Joy-Con/709776123": "webhook_1", "https://www.walmart.com/ip/Nintendo-Switch-Console-with-Gray-Joy-Con/994790027": "webhook_1", "https://www.target.com/p/nintendo-switch-with-neon-blue-and-neon-red-joy-con/-/A-77464001": "webhook_1", "https://www.target.com/p/nintendo-switch-with-gray-joy-con/-/A-77464002": "webhook_1", "https://www.target.com/p/nintendo-switch-lite-coral/-/A-79574296": "webhook_1"}
+{
+
+  "https://www.bestbuy.com/site/oculus-rift-s-pc-powered-vr-gaming-headset-black/6343150.p?skuId=6343150": "IFTT",
+  "https://www.bestbuy.com/site/oculus-quest-all-in-one-vr-gaming-headset-64gb-black/6342914.p?skuId=6342914": "IFTT",
+  "https://www.bestbuy.com/site/nintendo-switch-32gb-lite-coral/6257148.p?skuId=6257148": "IFTT",
+  "https://www.bestbuy.com/site/oculus-quest-all-in-one-vr-gaming-headset-128gb-black/6342915.p?skuId=6342915": "IFTT",
+
+  "https://www.target.com/p/nintendo-switch-with-neon-blue-and-neon-red-joy-con/-/A-77464001": "IFTT",
+  "https://www.target.com/p/nintendo-switch-with-gray-joy-con/-/A-77464002": "IFTT",
+  "https://www.target.com/p/nintendo-switch-lite-coral/-/A-79574296": "IFTT",
+  "https://www.target.com/p/boardwalk-white-universal-paper-towels-800ft/-/A-53404928?preselect=50714581": "IFTT",
+
+  "https://www.gamestop.com/video-games/switch/consoles/products/nintendo-switch-with-neon-blue-and-neon-red-joy-con/10141887.html": "IFTT",
+  "https://www.gamestop.com/video-games/switch/consoles/products/nintendo-switch-with-gray-joy-con/10141820.html": "IFTT",
+  "https://www.gamestop.com/nav-accessories-vr/products/oculus-quest-64gb/10176627.html": "IFTT"
+}
