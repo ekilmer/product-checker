@@ -200,12 +200,7 @@ class BestBuy:
             if stock_status == "ADD_TO_CART":
                 # print("[" + current_time + "] " + "In Stock: (BestBuy.com) " + product_name + " - " + link)
                 slack_data = {'value1': "Best Buy", 'value2': url}
-                if stockdict.get(sku) == None:
-                    response = requests.post(
-                    webhook_url, data=json.dumps(slack_data),
-                    headers={'Content-Type': 'application/json'})
-                stockdict.update({sku: 'True'})
-                #print(stockdict)
+                post_url(url, webhook_url, slack_data)
 
 class Walmart:
 
