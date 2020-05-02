@@ -93,7 +93,7 @@ class Amazon:
                     headers={'Content-Type': 'application/json'})
                 stockdict.update({url: 'True'})
             else:
-                print("[" + current_time + "] " + "Sold Out: (Amazon.com) " + title)
+                # print("[" + current_time + "] " + "Sold Out: (Amazon.com) " + title)
                 stockdict.update({url: 'False'})
         driver.quit()
 
@@ -131,7 +131,7 @@ class Gamestop:
                 headers={'Content-Type': 'application/json'})
             stockdict.update({url: 'True'})
         else:
-            print("[" + current_time + "] " + "Sold Out: (Gamestop.com) " + title)
+            # print("[" + current_time + "] " + "Sold Out: (Gamestop.com) " + title)
             stockdict.update({url: 'False'})
         driver.quit()
 
@@ -148,7 +148,7 @@ class Target:
         title = al[al.find('"twitter":{"title":') + 20 : al.find('","card')]
         #print(title)
         if "Temporarily out of stock" in page.text:
-            print("[" + current_time + "] " + "Sold Out: (Target.com) " + title)
+            # print("[" + current_time + "] " + "Sold Out: (Target.com) " + title)
             stockdict.update({url: 'False'})
         else: 
             print("[" + current_time + "] " + "In Stock: (Target.com) " + title + " - " + url)
@@ -184,7 +184,7 @@ class BestBuy:
         stock_status = al[al.find(search_string) + 33 : al.find('","displayText"')]
         product_name = sku_dict.get(sku)
         if stock_status == "SOLD_OUT":
-            print("[" + current_time + "] " + "Sold Out: (BestBuy.com) " + product_name)
+            # print("[" + current_time + "] " + "Sold Out: (BestBuy.com) " + product_name)
             stockdict.update({sku: 'False'})
         elif stock_status == "CHECK_STORES":
             print(product_name + " sold out @ BestBuy (check stores status)")
@@ -222,7 +222,7 @@ class Walmart:
                         print("Webhook sending failed. Invalid URL configured.")
                 stockdict.update({url: 'True'})
             else: 
-                print("[" + current_time + "] " + "Sold Out: (Walmart.com) " + url)
+                # print("[" + current_time + "] " + "Sold Out: (Walmart.com) " + url)
                 stockdict.update({url: 'False'})
 
 class BH:
@@ -244,7 +244,7 @@ class BH:
                                              headers={'Content-Type': 'application/json'})
                 stockdict.update({url: 'True'})
             else:
-                print("[" + current_time + "] " + "Sold Out: (bhphotovideo.com) " + url)
+                # print("[" + current_time + "] " + "Sold Out: (bhphotovideo.com) " + url)
                 stockdict.update({url: 'False'})
 
 #Classify all the URLs by site
@@ -256,18 +256,18 @@ for url in urldict:
     if "amazon.com" in url:
         if "offer-listing" in url:
             amazonlist.append(url)
-            print("Amazon detected using Webhook destination " + hook)
+            # print("Amazon detected using Webhook destination " + hook)
         else:
             print("Invalid Amazon link detected. Please use the Offer Listing page.")
 
    #Target URL Detection
     elif "gamestop.com" in url:
         gamestoplist.append(url)
-        print("Gamestop URL detected using Webhook destination " + hook)
+        # print("Gamestop URL detected using Webhook destination " + hook)
 
     #BestBuy URL Detection
     elif "bestbuy.com" in url:
-        print("BestBuy URL detected using Webhook destination " + hook)
+        # print("BestBuy URL detected using Webhook destination " + hook)
         parsed = urlparse.urlparse(url)
         sku = parse_qs(parsed.query)['skuId']
         sku = sku[0]
@@ -289,17 +289,17 @@ for url in urldict:
     #Target URL Detection
     elif "target.com" in url:
         targetlist.append(url)
-        print("Target URL detected using Webhook destination " + hook)
+        # print("Target URL detected using Webhook destination " + hook)
 
     #Walmart URL Detection
     elif "walmart.com" in url:
         walmartlist.append(url)
-        print("Walmart URL detected using Webhook destination " + hook)
+        # print("Walmart URL detected using Webhook destination " + hook)
 
     #B&H Photo URL Detection
     elif "bhphotovideo.com" in url:
         bhlist.append(url)
-        print("B&H URL detected using Webhook destination " + hook)
+        # print("B&H URL detected using Webhook destination " + hook)
 
 #set all URLs to be "out of stock" to begin
 for url in urldict:
@@ -315,8 +315,8 @@ def amzfunc(url):
         hook = urldict[url]
         try:
             Amazon(url, hook)
-        except:
-            print("Some error ocurred parsing Amazon")
+        except Exception as e:
+            print("Some error ocurred parsing Amazon: ", e)
         time.sleep(10)
 
 def gamestopfunc(url):
@@ -324,8 +324,8 @@ def gamestopfunc(url):
         hook = urldict[url]
         try:
             Gamestop(url, hook)
-        except:
-            print("Some error ocurred parsing Gamestop")
+        except Exception as e:
+            print("Some error ocurred parsing Gamestop: ", e)
         time.sleep(10)
 
 
@@ -334,8 +334,8 @@ def targetfunc(url):
         hook = urldict[url]
         try:
             Target(url, hook)
-        except:
-            print("Some error ocurred parsing Target")
+        except Exception as e:
+            print("Some error ocurred parsing Target: ", e)
         time.sleep(10)
 
 def bhfunc(url):
@@ -343,8 +343,8 @@ def bhfunc(url):
         hook = urldict[url]
         try:
             BH(url, hook)
-        except:
-            print("Some error ocurred parsing BH Photo")
+        except Exception as e:
+            print("Some error ocurred parsing BH Photo: ", e)
         time.sleep(10)
 
 def bestbuyfunc(sku):
@@ -352,8 +352,8 @@ def bestbuyfunc(sku):
         hook = bbdict[sku]
         try:
             BestBuy(sku, hook)
-        except:
-            print("Some error ocurred parsing Best Buy")
+        except Exception as e:
+            print("Some error ocurred parsing Best Buy: ", e)
         time.sleep(10)
 
 def walmartfunc(url):
@@ -361,8 +361,8 @@ def walmartfunc(url):
         hook = urldict[url]
         try:
             Walmart(url, hook)
-        except:
-            print("Some error ocurred parsing WalMart")
+        except Exception as e:
+            print("Some error ocurred parsing WalMart: ", e)
         time.sleep(10)
 
 
