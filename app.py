@@ -23,13 +23,12 @@ bbdict = {}
 amazonlist = []
 gamestoplist = []
 
-# ITEM_FOUND_TIMEOUT = 60 * 60 * 3  # 3 hours
-ITEM_FOUND_TIMEOUT = 10
+ITEM_FOUND_TIMEOUT = 60 * 60 * 3  # 3 hours
 THREAD_JITTER = 90
 CHECK_INTERVAL = 30  # Check once every [30-90s]
 
 
-def post_url(key, webhook_url, slack_data):
+def post_url(webhook_url, slack_data):
     requests.post(
         webhook_url, data=json.dumps(slack_data),
         headers={'Content-Type': 'application/json'})
@@ -74,7 +73,7 @@ def Amazon(url, hook):
             if "Currently, there are no sellers that can deliver this item to your location." not in status_text:
                 # print("[" + current_time + "] " + "In Stock: (Amazon.com) " + title + " - " + url)
                 slack_data = {'value1': "Amazon", 'value2': url, 'value3': title}
-                post_url(url, webhook_url, slack_data)
+                post_url(webhook_url, slack_data)
                 return True
             else:
                 # print("[" + current_time + "] " + "Sold Out: (Amazon.com) " + title)
@@ -107,7 +106,7 @@ def Gamestop(url, hook):
     try:
         if "ADD TO CART" in status_text:
             slack_data = {'value1': "Gamestop", 'value2': url, 'value3': title}
-            post_url(url, webhook_url, slack_data)
+            post_url(webhook_url, slack_data)
             return True
         return False
     finally:
@@ -123,7 +122,7 @@ def Target(url, hook):
     if "Temporarily out of stock" not in page.text:
         # print("[" + current_time + "] " + "In Stock: (Target.com) " + title + " - " + url)
         slack_data = {'value1': "Target", 'value2': url, 'value3': title}
-        post_url(url, webhook_url, slack_data)
+        post_url(webhook_url, slack_data)
         return True
     return False
 
@@ -156,7 +155,7 @@ def BestBuy(sku, hook):
         if stock_status == "ADD_TO_CART":
             # print("[" + current_time + "] " + "In Stock: (BestBuy.com) " + product_name + " - " + link)
             slack_data = {'value1': "Best Buy", 'value2': link, 'value3': product_name}
-            post_url(link, webhook_url, slack_data)
+            post_url(webhook_url, slack_data)
             return True
     return False
 
@@ -169,7 +168,7 @@ def Walmart(url, hook):
         if "Add to cart" in page.text:
             # print("[" + current_time + "] " + "In Stock: (Walmart.com) " + url)
             slack_data = {'value1': "Walmart", 'value2': url, 'value3': 'Some item'}
-            post_url(url, webhook_url, slack_data)
+            post_url(webhook_url, slack_data)
             return True
         return False
 
@@ -180,7 +179,7 @@ def BH(url, hook):
     if page.status_code == 200:
         if "Add to Cart" in page.text:
             slack_data = {'value1': "B&H", 'value2': url, 'value3': "Some item"}
-            post_url(url, webhook_url, slack_data)
+            post_url(webhook_url, slack_data)
             return True
         return False
 
