@@ -240,11 +240,7 @@ class BH:
             if "Add to Cart" in page.text:
                 # print("[" + current_time + "] " + "In Stock: (bhphotovideo.com) " + url)
                 slack_data = {'value1': "B&H", 'value2': url}
-                if stockdict.get(url) == None:
-                    response = requests.post(
-                                             webhook_url, data=json.dumps(slack_data),
-                                             headers={'Content-Type': 'application/json'})
-                stockdict.update({url: 'True'})
+                post_url(url, webhook_url, slack_data)
             else:
                 # print("[" + current_time + "] " + "Sold Out: (bhphotovideo.com) " + url)
                 stockdict.update({url: None})
