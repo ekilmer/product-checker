@@ -23,7 +23,7 @@ bbdict = {}
 amazonlist = []
 gamestoplist = []
 
-URL_CACHE_TIMEOUT = 60 * 60 * 6 # 6 hours
+URL_CACHE_TIMEOUT = 60 * 60 * 6  # 6 hours
 
 
 def post_url(key, webhook_url, slack_data):
@@ -32,7 +32,7 @@ def post_url(key, webhook_url, slack_data):
         response = requests.post(
             webhook_url, data=json.dumps(slack_data),
             headers={'Content-Type': 'application/json'})
-        stockdict.update({url: time.time()})
+        stockdict.update({key: time.time()})
 
 
 #Function for start-up menu
@@ -49,7 +49,7 @@ def menu():
         product_settings.main()
         menu()
     elif val == "3":
-        print("\n \n Starting Product Tracker! \n \n")
+        print("\n Starting Product Tracker! \n")
     else:
         menu()
 
@@ -88,7 +88,7 @@ class Amazon:
         html = driver.page_source
         if "To discuss automated access to Amazon data please contact api-services-support@amazon.com." in html:
             print("Amazons Bot Protection is preventing this call.")
-        else: 
+        else:
             status_raw = driver.find_element_by_xpath("//div[@id='olpOfferList']")
             status_text = status_raw.text
             title_raw = driver.find_element_by_xpath("//h1[@class='a-size-large a-spacing-none']")
@@ -161,7 +161,7 @@ class Target:
         if "Temporarily out of stock" in page.text:
             # print("[" + current_time + "] " + "Sold Out: (Target.com) " + title)
             stockdict.update({url: None})
-        else: 
+        else:
             # print("[" + current_time + "] " + "In Stock: (Target.com) " + title + " - " + url)
             slack_data = {'value1': "Target", 'value2': url}
             post_url(url, webhook_url, slack_data)
@@ -196,7 +196,7 @@ class BestBuy:
         elif stock_status == "CHECK_STORES":
             # print(product_name + " sold out @ BestBuy (check stores status)")
             stockdict.update({sku: None})
-        else: 
+        else:
             if stock_status == "ADD_TO_CART":
                 # print("[" + current_time + "] " + "In Stock: (BestBuy.com) " + product_name + " - " + link)
                 slack_data = {'value1': "Best Buy", 'value2': link}
@@ -223,7 +223,7 @@ class Walmart:
                     except:
                         print("Webhook sending failed. Invalid URL configured.")
                 stockdict.update({url: 'True'})
-            else: 
+            else:
                 # print("[" + current_time + "] " + "Sold Out: (Walmart.com) " + url)
                 stockdict.update({url: None})
 
@@ -305,7 +305,7 @@ for url in urldict:
 #set all SKUs to be "out of stock" to begin
 for sku in sku_dict:
     stockdict.update({sku: None})
-    
+
 #DECLARE SITE FUNCTIONS
 
 def amzfunc(url):
@@ -396,4 +396,4 @@ for url in walmartlist:
     t.start()
     time.sleep(0.5)
 
-print("\n \n Finished Starting Product Tracker! \n \n")
+print("Finished Starting Product Tracker!")
