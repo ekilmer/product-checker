@@ -328,7 +328,7 @@ for url in amazonlist:
 for url in gamestoplist:
     t = Thread(target=gamestopfunc, args=(url,))
     t.start()
-    time.sleep(2)
+    time.sleep(4)
 
 for url in targetlist:
     t = Thread(target=targetfunc, args=(url,))
