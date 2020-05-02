@@ -199,7 +199,7 @@ class BestBuy:
         else: 
             if stock_status == "ADD_TO_CART":
                 # print("[" + current_time + "] " + "In Stock: (BestBuy.com) " + product_name + " - " + link)
-                slack_data = {'value1': "Best Buy", 'value2': url}
+                slack_data = {'value1': "Best Buy", 'value2': link}
                 post_url(link, webhook_url, slack_data)
 
 class Walmart:
@@ -395,3 +395,5 @@ for url in walmartlist:
     t = Thread(target=walmartfunc, args=(url,))
     t.start()
     time.sleep(0.5)
+
+print("\n \n Finished Starting Product Tracker! \n \n")
