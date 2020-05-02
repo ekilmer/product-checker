@@ -8,9 +8,10 @@ import json
 from datetime import datetime
 import urllib.parse as urlparse
 from urllib.parse import parse_qs
-import webhook_settings
-import product_settings
+# import webhook_settings
+# import product_settings
 from threading import Thread
+from random import randint
 from selenium import webdriver
 from chromedriver_py import binary_path as driver_path
 stockdict = {} # Map of URLs to the last time they were seen in stock
@@ -24,7 +25,8 @@ amazonlist = []
 gamestoplist = []
 
 URL_CACHE_TIMEOUT = 60 * 60 * 6  # 6 hours
-
+THREAD_JITTER = 10
+CHECK_INTERVAL = 25  # Jitter across 25s and 35s
 
 def post_url(key, webhook_url, slack_data):
     val = stockdict.get(key, None)
@@ -305,7 +307,7 @@ def amzfunc(url):
             Amazon(url, hook)
         except Exception as e:
             print("Some error ocurred parsing Amazon: ", e)
-        time.sleep(10)
+        time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
 
 def gamestopfunc(url):
     while True:
@@ -314,8 +316,7 @@ def gamestopfunc(url):
             Gamestop(url, hook)
         except Exception as e:
             print("Some error ocurred parsing Gamestop: ", e)
-        time.sleep(10)
-
+        time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
 
 def targetfunc(url):
     while True:
@@ -324,7 +325,7 @@ def targetfunc(url):
             Target(url, hook)
         except Exception as e:
             print("Some error ocurred parsing Target: ", e)
-        time.sleep(10)
+        time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
 
 def bhfunc(url):
     while True:
@@ -333,7 +334,7 @@ def bhfunc(url):
             BH(url, hook)
         except Exception as e:
             print("Some error ocurred parsing BH Photo: ", e)
-        time.sleep(10)
+        time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
 
 def bestbuyfunc(sku):
     while True:
@@ -342,7 +343,7 @@ def bestbuyfunc(sku):
             BestBuy(sku, hook)
         except Exception as e:
             print("Some error ocurred parsing Best Buy: ", e)
-        time.sleep(10)
+        time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
 
 def walmartfunc(url):
     while True:
@@ -351,7 +352,7 @@ def walmartfunc(url):
             Walmart(url, hook)
         except Exception as e:
             print("Some error ocurred parsing WalMart: ", e)
-        time.sleep(10)
+        time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
 
 
 # MAIN EXECUTION
