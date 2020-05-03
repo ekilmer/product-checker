@@ -12,6 +12,7 @@ from threading import Thread
 from random import randint
 from selenium import webdriver
 from chromedriver_py import binary_path as driver_path
+from sys import platform
 
 stockdict = {}  # Map of URLs to the last time they were seen in stock
 sku_dict = {}
@@ -23,13 +24,14 @@ bbdict = {}
 amazonlist = []
 gamestoplist = []
 
-# ITEM_FOUND_TIMEOUT = 60 * 60 * 3  # 3 hours
-ITEM_FOUND_TIMEOUT = 10
-THREAD_JITTER = 90
+chromedriver_path = '/usr/lib/chromium-browser/chromedriver' if platform == "linux" else driver_path
+
+ITEM_FOUND_TIMEOUT = 60 * 60 * 3  # 3 hours
+THREAD_JITTER = 60
 CHECK_INTERVAL = 30  # Check once every [30-90s]
 
 
-def post_url(key, webhook_url, slack_data):
+def post_webhook(webhook_url, slack_data):
     requests.post(
         webhook_url, data=json.dumps(slack_data),
         headers={'Content-Type': 'application/json'})
@@ -56,7 +58,10 @@ def Amazon(url, hook):
     options.add_argument(
         '--user-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36"')
     options.add_argument("headless")
-    driver = webdriver.Chrome(executable_path=driver_path, options=options)
+    if platform == "linux":
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+    driver = webdriver.Chrome(executable_path=chromedriver_path, options=options)
     driver.get(url)
 
     html = driver.page_source
@@ -72,7 +77,7 @@ def Amazon(url, hook):
             if "Currently, there are no sellers that can deliver this item to your location." not in status_text:
                 # print("[" + current_time + "] " + "In Stock: (Amazon.com) " + title + " - " + url)
                 slack_data = {'value1': "Amazon", 'value2': url, 'value3': title}
-                post_url(url, webhook_url, slack_data)
+                post_webhook(webhook_url, slack_data)
                 return True
             else:
                 # print("[" + current_time + "] " + "Sold Out: (Amazon.com) " + title)
@@ -92,7 +97,10 @@ def Gamestop(url, hook):
     options.add_argument(
         '--user-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36"')
     options.add_argument("headless")
-    driver = webdriver.Chrome(executable_path=driver_path, chrome_options=options)
+    if platform == "linux":
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+    driver = webdriver.Chrome(executable_path=chromedriver_path, chrome_options=options)
     driver.get(url)
 
     status_raw = driver.find_element_by_xpath("//div[@class='add-to-cart-buttons']")
@@ -103,7 +111,7 @@ def Gamestop(url, hook):
     try:
         if "ADD TO CART" in status_text:
             slack_data = {'value1': "Gamestop", 'value2': url, 'value3': title}
-            post_url(url, webhook_url, slack_data)
+            post_webhook(webhook_url, slack_data)
             return True
         return False
     finally:
@@ -116,10 +124,10 @@ def Target(url, hook):
     page = requests.get(url)
     al = page.text
     title = al[al.find('"twitter":{"title":') + 20 : al.find('","card')]
-    if "Temporarily out of stock" not in page.text:
+    if "Ship it" in page.text:
         # print("[" + current_time + "] " + "In Stock: (Target.com) " + title + " - " + url)
         slack_data = {'value1': "Target", 'value2': url, 'value3': title}
-        post_url(url, webhook_url, slack_data)
+        post_webhook(webhook_url, slack_data)
         return True
     return False
 
@@ -152,7 +160,7 @@ def BestBuy(sku, hook):
         if stock_status == "ADD_TO_CART":
             # print("[" + current_time + "] " + "In Stock: (BestBuy.com) " + product_name + " - " + link)
             slack_data = {'value1': "Best Buy", 'value2': link, 'value3': product_name}
-            post_url(link, webhook_url, slack_data)
+            post_webhook(webhook_url, slack_data)
             return True
     return False
 
@@ -165,7 +173,7 @@ def Walmart(url, hook):
         if "Add to cart" in page.text:
             # print("[" + current_time + "] " + "In Stock: (Walmart.com) " + url)
             slack_data = {'value1': "Walmart", 'value2': url, 'value3': 'Some item'}
-            post_url(url, webhook_url, slack_data)
+            post_webhook(webhook_url, slack_data)
             return True
         return False
 
@@ -176,7 +184,7 @@ def BH(url, hook):
     if page.status_code == 200:
         if "Add to Cart" in page.text:
             slack_data = {'value1': "B&H", 'value2': url, 'value3': "Some item"}
-            post_url(url, webhook_url, slack_data)
+            post_webhook(webhook_url, slack_data)
             return True
         return False
 
