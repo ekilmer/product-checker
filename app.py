@@ -62,6 +62,7 @@ def Amazon(url, hook):
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
     driver = webdriver.Chrome(executable_path=chromedriver_path, options=options)
+    driver.set_page_load_timeout(15)
     driver.get(url)
 
     html = driver.page_source
@@ -101,6 +102,7 @@ def Gamestop(url, hook):
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
     driver = webdriver.Chrome(executable_path=chromedriver_path, chrome_options=options)
+    driver.set_page_load_timeout(15)
     driver.get(url)
 
     status_raw = driver.find_element_by_xpath("//div[@class='add-to-cart-buttons']")
