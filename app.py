@@ -264,7 +264,7 @@ def gamestopfunc(url):
             else:
                 time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
         except Exception as e:
-            print("Some error ocurred parsing Gamestop: ", e)
+            print("Some error occurred parsing Gamestop: ", e)
 
 
 def targetfunc(url):
@@ -289,7 +289,6 @@ def bhfunc(url):
                 time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
         except Exception as e:
             print("Some error ocurred parsing BH Photo: ", e)
-        time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
 
 
 def bestbuyfunc(sku):
@@ -314,7 +313,6 @@ def walmartfunc(url):
                 time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
         except Exception as e:
             print("Some error ocurred parsing WalMart: ", e)
-        time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
 
 
 # MAIN EXECUTION
