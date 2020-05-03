@@ -79,18 +79,13 @@ def Amazon(url, hook):
         status_text = status_raw.text
         title_raw = driver.find_element_by_xpath("//h1[@class='a-size-large a-spacing-none']")
         title = title_raw.text
-
-        try:
-            if "Currently, there are no sellers that can deliver this item to your location." not in status_text:
-                # print("[" + current_time + "] " + "In Stock: (Amazon.com) " + title + " - " + url)
-                slack_data = {'value1': "Amazon", 'value2': url, 'value3': title}
-                post_webhook(webhook_url, slack_data)
-                return True
-            else:
-                stockdict.update({url: None})
-                return False
-        finally:
-            driver.quit()
+        driver.quit()
+        if "Currently, there are no sellers that can deliver this item to your location." not in status_text:
+            # print("[" + current_time + "] " + "In Stock: (Amazon.com) " + title + " - " + url)
+            slack_data = {'value1': "Amazon", 'value2': url, 'value3': title}
+            post_webhook(webhook_url, slack_data)
+            return True
+        return False
 
 
 def Gamestop(url, hook):
@@ -103,20 +98,16 @@ def Gamestop(url, hook):
     status_text = status_raw.text
     title_raw = driver.find_element_by_xpath("//h1[@class='product-name h2']")
     title = title_raw.text
-
-    try:
-        if "ADD TO CART" in status_text:
-            slack_data = {'value1': "Gamestop", 'value2': url, 'value3': title}
-            post_webhook(webhook_url, slack_data)
-            return True
-        return False
-    finally:
-        driver.quit()
+    driver.quit()
+    if "ADD TO CART" in status_text:
+        slack_data = {'value1': "Gamestop", 'value2': url, 'value3': title}
+        post_webhook(webhook_url, slack_data)
+        return True
+    return False
 
 
 def Target(url, hook):
     webhook_url = webhook_dict[hook]
-    now = datetime.now()
     page = requests.get(url)
     al = page.text
     title = al[al.find('"twitter":{"title":') + 20 : al.find('","card')]
