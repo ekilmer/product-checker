@@ -8,13 +8,13 @@ import json
 from datetime import datetime
 import urllib.parse as urlparse
 from urllib.parse import parse_qs
-from threading import Thread
+from threading import Thread, Semaphore
 from random import randint
 from selenium import webdriver
 from chromedriver_py import binary_path as driver_path
 from sys import platform
+from os import cpu_count
 
-stockdict = {}  # Map of URLs to the last time they were seen in stock
 sku_dict = {}
 bestbuylist = []
 targetlist = []
@@ -24,17 +24,19 @@ bbdict = {}
 amazonlist = []
 gamestoplist = []
 
-chromedriver_path = '/usr/lib/chromium-browser/chromedriver' if platform == "linux" else driver_path
+chromedriver_path = driver_path
+concurrent_chromedriver_instances = cpu_count()
+if platform == "linux":
+    chromedriver_path = '/usr/lib/chromium-browser/chromedriver'
+    concurrent_chromedriver_instances = 3
+
+# Limit the number of chromedriver instances to not starve the Pi of resources
+chromedriver_semphabore = Semaphore(concurrent_chromedriver_instances)
 
 ITEM_FOUND_TIMEOUT = 60 * 60 * 3  # 3 hours
-THREAD_JITTER = 60
-CHECK_INTERVAL = 30  # Check once every [30-90s]
+THREAD_JITTER = 15
+CHECK_INTERVAL = 30  # Check once every [30-45s]
 
-
-def post_webhook(webhook_url, slack_data):
-    requests.post(
-        webhook_url, data=json.dumps(slack_data),
-        headers={'Content-Type': 'application/json'})
 
 def return_data(path):
     with open(path, "r") as file:
@@ -43,9 +45,14 @@ def return_data(path):
     return data
 
 
-# Only declare the webhook and product lists after the menu has been passed so that changes made from menu selections are up to date
 webhook_dict = return_data("./data/webhooks.json")
 urldict = return_data("./data/products.json")
+
+
+def post_webhook(webhook_url, slack_data):
+    requests.post(
+        webhook_url, data=json.dumps(slack_data),
+        headers={'Content-Type': 'application/json'})
 
 
 def get_driver():
@@ -66,10 +73,11 @@ def get_driver():
 
 def Amazon(url, hook):
     webhook_url = webhook_dict[hook]
-    now = datetime.now()
 
+    chromedriver_semphabore.acquire()
     driver = get_driver()
     driver.get(url)
+    chromedriver_semphabore.release()
 
     html = driver.page_source
     if "To discuss automated access to Amazon data please contact api-services-support@amazon.com." in html:
@@ -91,8 +99,10 @@ def Amazon(url, hook):
 def Gamestop(url, hook):
     webhook_url = webhook_dict[hook]
 
+    chromedriver_semphabore.acquire()
     driver = get_driver()
     driver.get(url)
+    chromedriver_semphabore.release()
 
     status_raw = driver.find_element_by_xpath("//div[@class='add-to-cart-buttons']")
     status_text = status_raw.text
@@ -121,7 +131,6 @@ def Target(url, hook):
 
 def BestBuy(sku, hook):
     webhook_url = webhook_dict[hook]
-    now = datetime.now()
     url = "https://www.bestbuy.com/api/tcfb/model.json?paths=%5B%5B%22shop%22%2C%22scds%22%2C%22v2%22%2C%22page%22%2C%22tenants%22%2C%22bbypres%22%2C%22pages%22%2C%22globalnavigationv5sv%22%2C%22header%22%5D%2C%5B%22shop%22%2C%22buttonstate%22%2C%22v5%22%2C%22item%22%2C%22skus%22%2C" + sku + "%2C%22conditions%22%2C%22NONE%22%2C%22destinationZipCode%22%2C%22%2520%22%2C%22storeId%22%2C%22%2520%22%2C%22context%22%2C%22cyp%22%2C%22addAll%22%2C%22false%22%5D%5D&method=get"
     headers2 = {
         "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
@@ -137,32 +146,22 @@ def BestBuy(sku, hook):
     search_string = '"skuId":"' + sku + '","buttonState":"'
     stock_status = al[al.find(search_string) + 33: al.find('","displayText"')]
     product_name = sku_dict.get(sku)
-    if stock_status == "SOLD_OUT":
-        # print("[" + current_time + "] " + "Sold Out: (BestBuy.com) " + product_name)
-        stockdict.update({sku: None})
-    elif stock_status == "CHECK_STORES":
-        # print(product_name + " sold out @ BestBuy (check stores status)")
-        stockdict.update({sku: None})
-    else:
-        if stock_status == "ADD_TO_CART":
-            # print("[" + current_time + "] " + "In Stock: (BestBuy.com) " + product_name + " - " + link)
-            slack_data = {'value1': "Best Buy", 'value2': link, 'value3': product_name}
-            post_webhook(webhook_url, slack_data)
-            return True
+    if stock_status == "ADD_TO_CART":
+        slack_data = {'value1': "Best Buy", 'value2': link, 'value3': product_name}
+        post_webhook(webhook_url, slack_data)
+        return True
     return False
 
 
 def Walmart(url, hook):
     webhook_url = webhook_dict[hook]
-    now = datetime.now()
     page = requests.get(url)
     if page.status_code == 200:
         if "Add to cart" in page.text:
-            # print("[" + current_time + "] " + "In Stock: (Walmart.com) " + url)
             slack_data = {'value1': "Walmart", 'value2': url, 'value3': 'Some item'}
             post_webhook(webhook_url, slack_data)
             return True
-        return False
+    return False
 
 
 def BH(url, hook):
@@ -173,67 +172,7 @@ def BH(url, hook):
             slack_data = {'value1': "B&H", 'value2': url, 'value3': "Some item"}
             post_webhook(webhook_url, slack_data)
             return True
-        return False
-
-
-# Classify all the URLs by site
-
-for url in urldict:
-    hook = urldict[url]  # get the hook for the url so it can be passed in to the per-site lists being generated below
-
-    # Amazon URL Detection
-    if "amazon.com" in url:
-        if "offer-listing" in url:
-            amazonlist.append(url)
-            # print("Amazon detected using Webhook destination " + hook)
-        else:
-            print("Invalid Amazon link detected. Please use the Offer Listing page.")
-
-    # Target URL Detection
-    elif "gamestop.com" in url:
-        gamestoplist.append(url)
-
-    # BestBuy URL Detection
-    elif "bestbuy.com" in url:
-        parsed = urlparse.urlparse(url)
-        sku = parse_qs(parsed.query)['skuId']
-        sku = sku[0]
-        bestbuylist.append(sku)
-        headers = {
-            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-            "accept-encoding": "gzip, deflate, br",
-            "accept-language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
-            "cache-control": "max-age=0",
-            "upgrade-insecure-requests": "1",
-            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.69 Safari/537.36"
-        }
-        page = requests.get(url, headers=headers)
-        al = page.text
-        title = al[al.find('<title >') + 8: al.find(' - Best Buy</title>')]
-        sku_dict.update({sku: title})
-        bbdict.update({sku: hook})
-
-    # Target URL Detection
-    elif "target.com" in url:
-        targetlist.append(url)
-
-    # Walmart URL Detection
-    elif "walmart.com" in url:
-        walmartlist.append(url)
-
-    # B&H Photo URL Detection
-    elif "bhphotovideo.com" in url:
-        bhlist.append(url)
-
-# set all URLs to be "out of stock" to begin
-for url in urldict:
-    stockdict.update({url: None})
-# set all SKUs to be "out of stock" to begin
-for sku in sku_dict:
-    stockdict.update({sku: None})
-
-
-# DECLARE SITE FUNCTIONS
+    return False
 
 def amzfunc(url):
     while True:
@@ -311,6 +250,55 @@ def walmartfunc(url):
             print("Some error ocurred parsing WalMart: ", e)
             time.sleep(CHECK_INTERVAL)
 
+
+# Classify all the URLs by site
+
+for url in urldict:
+    hook = urldict[url]  # get the hook for the url so it can be passed in to the per-site lists being generated below
+
+    # Amazon URL Detection
+    if "amazon.com" in url:
+        if "offer-listing" in url:
+            amazonlist.append(url)
+            # print("Amazon detected using Webhook destination " + hook)
+        else:
+            print("Invalid Amazon link detected. Please use the Offer Listing page.")
+
+    # Target URL Detection
+    elif "gamestop.com" in url:
+        gamestoplist.append(url)
+
+    # BestBuy URL Detection
+    elif "bestbuy.com" in url:
+        parsed = urlparse.urlparse(url)
+        sku = parse_qs(parsed.query)['skuId']
+        sku = sku[0]
+        bestbuylist.append(sku)
+        headers = {
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+            "accept-encoding": "gzip, deflate, br",
+            "accept-language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
+            "cache-control": "max-age=0",
+            "upgrade-insecure-requests": "1",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.69 Safari/537.36"
+        }
+        page = requests.get(url, headers=headers)
+        al = page.text
+        title = al[al.find('<title >') + 8: al.find(' - Best Buy</title>')]
+        sku_dict.update({sku: title})
+        bbdict.update({sku: hook})
+
+    # Target URL Detection
+    elif "target.com" in url:
+        targetlist.append(url)
+
+    # Walmart URL Detection
+    elif "walmart.com" in url:
+        walmartlist.append(url)
+
+    # B&H Photo URL Detection
+    elif "bhphotovideo.com" in url:
+        bhlist.append(url)
 
 # MAIN EXECUTION
 
