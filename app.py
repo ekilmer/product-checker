@@ -48,9 +48,7 @@ webhook_dict = return_data("./data/webhooks.json")
 urldict = return_data("./data/products.json")
 
 
-def Amazon(url, hook):
-    webhook_url = webhook_dict[hook]
-    now = datetime.now()
+def get_driver():
     options = webdriver.ChromeOptions()
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
     options.add_argument('log-level=3')
@@ -63,6 +61,14 @@ def Amazon(url, hook):
         options.add_argument("--disable-dev-shm-usage")
     driver = webdriver.Chrome(executable_path=chromedriver_path, options=options)
     driver.set_page_load_timeout(15)
+    return driver
+
+
+def Amazon(url, hook):
+    webhook_url = webhook_dict[hook]
+    now = datetime.now()
+
+    driver = get_driver()
     driver.get(url)
 
     html = driver.page_source
@@ -81,7 +87,6 @@ def Amazon(url, hook):
                 post_webhook(webhook_url, slack_data)
                 return True
             else:
-                # print("[" + current_time + "] " + "Sold Out: (Amazon.com) " + title)
                 stockdict.update({url: None})
                 return False
         finally:
@@ -90,19 +95,8 @@ def Amazon(url, hook):
 
 def Gamestop(url, hook):
     webhook_url = webhook_dict[hook]
-    now = datetime.now()
-    options = webdriver.ChromeOptions()
-    options.add_experimental_option('excludeSwitches', ['enable-logging'])
-    options.add_argument('log-level=3')
-    options.add_argument('--ignore-certificate-errors')
-    options.add_argument(
-        '--user-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36"')
-    options.add_argument("headless")
-    if platform == "linux":
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-    driver = webdriver.Chrome(executable_path=chromedriver_path, chrome_options=options)
-    driver.set_page_load_timeout(15)
+
+    driver = get_driver()
     driver.get(url)
 
     status_raw = driver.find_element_by_xpath("//div[@class='add-to-cart-buttons']")
