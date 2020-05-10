@@ -38,8 +38,8 @@ THREAD_JITTER = 15
 CHECK_INTERVAL = 30  # Check once every [30-45s]
 
 
-def log(*msg):
-    print("[" + datetime.now().strftime("%H:%M:%S") + "]",  msg)
+def log(msg, *msgv):
+    print("[" + datetime.now().strftime("%H:%M:%S") + "]",  msg, msgv)
 
 
 def return_data(path):
