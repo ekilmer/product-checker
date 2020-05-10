@@ -33,9 +33,13 @@ if platform == "linux":
 # Limit the number of chromedriver instances to not starve the Pi of resources
 chromedriver_semphabore = Semaphore(concurrent_chromedriver_instances)
 
-ITEM_FOUND_TIMEOUT = 60 * 60 * 3  # 3 hours
+ITEM_FOUND_TIMEOUT = 60 * 60 * 6  # 3 hours
 THREAD_JITTER = 15
 CHECK_INTERVAL = 30  # Check once every [30-45s]
+
+
+def log(msg):
+    print("[" + datetime.now().strftime("%H:%M:%S") + "]",  msg)
 
 
 def return_data(path):
@@ -81,7 +85,7 @@ def Amazon(url, hook):
 
     html = driver.page_source
     if "To discuss automated access to Amazon data please contact api-services-support@amazon.com." in html:
-        print("Amazons Bot Protection is preventing this call.")
+        log("Amazons Bot Protection is preventing this call.")
     else:
         status_raw = driver.find_element_by_xpath("//div[@id='olpOfferList']")
         status_text = status_raw.text
@@ -89,7 +93,6 @@ def Amazon(url, hook):
         title = title_raw.text
         driver.quit()
         if "Currently, there are no sellers that can deliver this item to your location." not in status_text:
-            # print("[" + current_time + "] " + "In Stock: (Amazon.com) " + title + " - " + url)
             slack_data = {'value1': "Amazon", 'value2': url, 'value3': title}
             post_webhook(webhook_url, slack_data)
             return True
@@ -122,7 +125,6 @@ def Target(url, hook):
     al = page.text
     title = al[al.find('"twitter":{"title":') + 20 : al.find('","card')]
     if "Ship it" in page.text:
-        # print("[" + current_time + "] " + "In Stock: (Target.com) " + title + " - " + url)
         slack_data = {'value1': "Target", 'value2': url, 'value3': title}
         post_webhook(webhook_url, slack_data)
         return True
@@ -183,7 +185,7 @@ def amzfunc(url):
             else:
                 time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
         except Exception as e:
-            print("Some error ocurred parsing Amazon: ", e)
+            log("Some error ocurred parsing Amazon: ", e)
             time.sleep(CHECK_INTERVAL)
 
 
@@ -196,7 +198,7 @@ def gamestopfunc(url):
             else:
                 time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
         except Exception as e:
-            print("Some error ocurred parsing Gamestop: ", e)
+            log("Some error ocurred parsing Gamestop: ", e)
             time.sleep(CHECK_INTERVAL)
 
 
@@ -209,7 +211,7 @@ def targetfunc(url):
             else:
                 time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
         except Exception as e:
-            print("Some error ocurred parsing Target: ", e)
+            log("Some error ocurred parsing Target: ", e)
             time.sleep(CHECK_INTERVAL)
 
 
@@ -222,7 +224,7 @@ def bhfunc(url):
             else:
                 time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
         except Exception as e:
-            print("Some error ocurred parsing BH Photo: ", e)
+            log("Some error ocurred parsing BH Photo: ", e)
             time.sleep(CHECK_INTERVAL)
 
 def bestbuyfunc(sku):
@@ -234,7 +236,7 @@ def bestbuyfunc(sku):
             else:
                 time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
         except Exception as e:
-            print("Some error ocurred parsing Best Buy: ", e)
+            log("Some error ocurred parsing Best Buy: ", e)
             time.sleep(CHECK_INTERVAL)
 
 
@@ -247,7 +249,7 @@ def walmartfunc(url):
             else:
                 time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
         except Exception as e:
-            print("Some error ocurred parsing WalMart: ", e)
+            log("Some error ocurred parsing WalMart: ", e)
             time.sleep(CHECK_INTERVAL)
 
 
@@ -260,7 +262,6 @@ for url in urldict:
     if "amazon.com" in url:
         if "offer-listing" in url:
             amazonlist.append(url)
-            # print("Amazon detected using Webhook destination " + hook)
         else:
             print("Invalid Amazon link detected. Please use the Offer Listing page.")
 
@@ -301,7 +302,7 @@ for url in urldict:
         bhlist.append(url)
 
 # MAIN EXECUTION
-
+log("Starting Product Tracker!")
 for url in amazonlist:
     t = Thread(target=amzfunc, args=(url,))
     t.start()
@@ -332,4 +333,4 @@ for url in walmartlist:
     t.start()
     time.sleep(0.5)
 
-print("Finished Starting Product Tracker!")
+log("Finished Starting Product Tracker!")
