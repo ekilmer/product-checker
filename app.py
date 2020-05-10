@@ -38,7 +38,7 @@ THREAD_JITTER = 15
 CHECK_INTERVAL = 30  # Check once every [30-45s]
 
 
-def log(msg):
+def log(*msg):
     print("[" + datetime.now().strftime("%H:%M:%S") + "]",  msg)
 
 
