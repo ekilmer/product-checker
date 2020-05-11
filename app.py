@@ -2,6 +2,9 @@
 # by Tyler Woods
 # coded for Bird Bot and friends
 # https://tylermade.net
+import typing
+from typing import Any, Union
+
 import requests
 import time
 import json
@@ -10,10 +13,13 @@ import urllib.parse as urlparse
 from urllib.parse import parse_qs
 from threading import Thread, Semaphore
 from random import randint
+from lxml import html
 from selenium import webdriver
 from chromedriver_py import binary_path as driver_path
 from sys import platform
 from os import cpu_count
+
+from selenium.webdriver.chrome.webdriver import WebDriver
 
 sku_dict = {}
 bestbuylist = []
@@ -38,8 +44,8 @@ THREAD_JITTER = 15
 CHECK_INTERVAL = 30  # Check once every [30-45s]
 
 
-def log(msg, *msgv):
-    print("[" + datetime.now().strftime("%H:%M:%S") + "]",  msg, msgv)
+def log(msg: Any, *msgv):
+    print("[" + datetime.now().strftime("%H:%M:%S") + "]", msg, msgv)
 
 
 def return_data(path):
@@ -53,19 +59,20 @@ webhook_dict = return_data("./data/webhooks.json")
 urldict = return_data("./data/products.json")
 
 
-def post_webhook(webhook_url, slack_data):
+def post_webhook(webhook_url: str, slack_data: dict):
     requests.post(
         webhook_url, data=json.dumps(slack_data),
         headers={'Content-Type': 'application/json'})
 
 
-def get_driver():
+def get_driver() -> WebDriver:
     options = webdriver.ChromeOptions()
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
     options.add_argument('log-level=3')
     options.add_argument('--ignore-certificate-errors')
     options.add_argument(
-        '--user-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36"')
+        '--user-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 '
+        'Safari/537.36"')
     options.add_argument("headless")
     if platform == "linux":
         options.add_argument("--no-sandbox")
@@ -119,28 +126,22 @@ def Gamestop(url, hook):
     return False
 
 
-def Target(url, hook):
-    webhook_url = webhook_dict[hook]
-    page = requests.get(url)
-    al = page.text
-    title = al[al.find('"twitter":{"title":') + 20 : al.find('","card')]
-    if "Ship it" in page.text:
-        slack_data = {'value1': "Target", 'value2': url, 'value3': title}
-        post_webhook(webhook_url, slack_data)
-        return True
-    return False
-
-
 def BestBuy(sku, hook):
     webhook_url = webhook_dict[hook]
-    url = "https://www.bestbuy.com/api/tcfb/model.json?paths=%5B%5B%22shop%22%2C%22scds%22%2C%22v2%22%2C%22page%22%2C%22tenants%22%2C%22bbypres%22%2C%22pages%22%2C%22globalnavigationv5sv%22%2C%22header%22%5D%2C%5B%22shop%22%2C%22buttonstate%22%2C%22v5%22%2C%22item%22%2C%22skus%22%2C" + sku + "%2C%22conditions%22%2C%22NONE%22%2C%22destinationZipCode%22%2C%22%2520%22%2C%22storeId%22%2C%22%2520%22%2C%22context%22%2C%22cyp%22%2C%22addAll%22%2C%22false%22%5D%5D&method=get"
+    url = "https://www.bestbuy.com/api/tcfb/model.json?paths=%5B%5B%22shop%22%2C%22scds%22%2C%22v2%22%2C%22page%22%2C" \
+          "%22tenants%22%2C%22bbypres%22%2C%22pages%22%2C%22globalnavigationv5sv%22%2C%22header%22%5D%2C%5B%22shop%22" \
+          "%2C%22buttonstate%22%2C%22v5%22%2C%22item%22%2C%22skus%22%2C" + sku + \
+          "%2C%22conditions%22%2C%22NONE%22%2C%22destinationZipCode%22%2C%22%2520%22%2C%22storeId%22%2C%22%2520%22%2C" \
+          "%22context%22%2C%22cyp%22%2C%22addAll%22%2C%22false%22%5D%5D&method=get "
     headers2 = {
-        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,"
+                  "application/signed-exchange;v=b3;q=0.9",
         "accept-encoding": "gzip, deflate, br",
         "accept-language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
         "cache-control": "max-age=0",
         "upgrade-insecure-requests": "1",
-        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.69 Safari/537.36"
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/81.0.4044.69 Safari/537.36 "
     }
     page = requests.get(url, headers=headers2)
     link = "https://www.bestbuy.com/site/" + sku + ".p?skuId=" + sku
@@ -155,37 +156,72 @@ def BestBuy(sku, hook):
     return False
 
 
-def Walmart(url, hook):
-    webhook_url = webhook_dict[hook]
-    page = requests.get(url)
-    if page.status_code == 200:
-        if "Add to cart" in page.text:
-            slack_data = {'value1': "Walmart", 'value2': url, 'value3': 'Some item'}
-            post_webhook(webhook_url, slack_data)
-            return True
-    return False
+# A CheckerFunc take a page and returns the item title if the item is in stock
+def target_checker(resp: requests.Response) -> str:
+    page = resp.text
+    if '"is_out_of_stock_in_all_online_locations":false' in page:
+        title = page[page.find('"twitter":{"title":') + 20: page.find('","card')]
+        return title
+    return ""
 
 
-def BH(url, hook):
+def walmart_checker(resp: requests.Response) -> str:
+    if "Add to cart" in resp.text:
+        tree = html.fromstring(resp.content)
+        title_raw = tree.xpath("//h1[@class='prod-ProductTitle font-normal']")
+        return title_raw[0].text
+    return ""
+
+
+def bh_checker(resp: requests.Response) -> str:
+    if "Add to Cart" in resp.text:
+        return "An item"
+    return ""
+
+
+# ThreadFunc takes a URL and a CheckerFunc
+def ThreadFunc(url: str, store: str, checker):
     webhook_url = webhook_dict[hook]
-    page = requests.get(url)
-    if page.status_code == 200:
-        if "Add to Cart" in page.text:
-            slack_data = {'value1': "B&H", 'value2': url, 'value3': "Some item"}
-            post_webhook(webhook_url, slack_data)
-            return True
-    return False
+    while True:
+        try:
+            page = requests.get(url)
+            if page.status_code == 200:
+                title = checker(page)
+                if title != "":
+                    slack_data = {'value1': store, 'value2': url, 'value3': title}
+                    post_webhook(webhook_url, slack_data)
+                    time.sleep(ITEM_FOUND_TIMEOUT)
+                else:
+                    time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
+            else:
+                log("Non 200 status code: ", page.status_code)
+                time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
+        except Exception as e:
+            log("Some error ocurred: ", e)
+            time.sleep(CHECK_INTERVAL)
+
+
+# GetFuncFromURL takes a URL and return the corresponding checkerfunc
+def GetFuncFromURL(url: str):
+    if "target.com" in url:
+        return target_checker, "Target"
+    elif "walmart.com" in url:
+        return walmart_checker, "Walmart"
+    elif "bhphotovideo.com" in url:
+        return bh_checker, "B&H"
+    return None
+
 
 def amzfunc(url):
     while True:
         hook = urldict[url]
         try:
             if Amazon(url, hook):
-                 time.sleep(ITEM_FOUND_TIMEOUT)
+                time.sleep(ITEM_FOUND_TIMEOUT)
             else:
                 time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
         except Exception as e:
-            log("Some error ocurred parsing Amazon: ", e)
+            log("Some error occurred parsing Amazon: ", e)
             time.sleep(CHECK_INTERVAL)
 
 
@@ -202,31 +238,6 @@ def gamestopfunc(url):
             time.sleep(CHECK_INTERVAL)
 
 
-def targetfunc(url):
-    while True:
-        hook = urldict[url]
-        try:
-            if Target(url, hook):
-                time.sleep(ITEM_FOUND_TIMEOUT)
-            else:
-                time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
-        except Exception as e:
-            log("Some error ocurred parsing Target: ", e)
-            time.sleep(CHECK_INTERVAL)
-
-
-def bhfunc(url):
-    while True:
-        hook = urldict[url]
-        try:
-            if BH(url, hook):
-                time.sleep(ITEM_FOUND_TIMEOUT)
-            else:
-                time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
-        except Exception as e:
-            log("Some error ocurred parsing BH Photo: ", e)
-            time.sleep(CHECK_INTERVAL)
-
 def bestbuyfunc(sku):
     while True:
         hook = bbdict[sku]
@@ -240,21 +251,6 @@ def bestbuyfunc(sku):
             time.sleep(CHECK_INTERVAL)
 
 
-def walmartfunc(url):
-    while True:
-        hook = urldict[url]
-        try:
-            if Walmart(url, hook):
-                time.sleep(ITEM_FOUND_TIMEOUT)
-            else:
-                time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
-        except Exception as e:
-            log("Some error ocurred parsing WalMart: ", e)
-            time.sleep(CHECK_INTERVAL)
-
-
-# Classify all the URLs by site
-
 for url in urldict:
     hook = urldict[url]  # get the hook for the url so it can be passed in to the per-site lists being generated below
 
@@ -265,7 +261,7 @@ for url in urldict:
         else:
             print("Invalid Amazon link detected. Please use the Offer Listing page.")
 
-    # Target URL Detection
+    # Gamestop URL Detection
     elif "gamestop.com" in url:
         gamestoplist.append(url)
 
@@ -276,12 +272,14 @@ for url in urldict:
         sku = sku[0]
         bestbuylist.append(sku)
         headers = {
-            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,"
+                      "application/signed-exchange;v=b3;q=0.9",
             "accept-encoding": "gzip, deflate, br",
             "accept-language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
             "cache-control": "max-age=0",
             "upgrade-insecure-requests": "1",
-            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.69 Safari/537.36"
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/81.0.4044.69 Safari/537.36 "
         }
         page = requests.get(url, headers=headers)
         al = page.text
@@ -289,48 +287,34 @@ for url in urldict:
         sku_dict.update({sku: title})
         bbdict.update({sku: hook})
 
-    # Target URL Detection
-    elif "target.com" in url:
-        targetlist.append(url)
-
-    # Walmart URL Detection
-    elif "walmart.com" in url:
-        walmartlist.append(url)
-
-    # B&H Photo URL Detection
-    elif "bhphotovideo.com" in url:
-        bhlist.append(url)
-
 # MAIN EXECUTION
 log("Starting Product Tracker!")
-for url in amazonlist:
-    t = Thread(target=amzfunc, args=(url,))
+for amzurl in amazonlist:
+    t = Thread(target=amzfunc, args=(amzurl,))
     t.start()
     time.sleep(0.5)
 
-for url in gamestoplist:
-    t = Thread(target=gamestopfunc, args=(url,))
+for gsurl in gamestoplist:
+    t = Thread(target=gamestopfunc, args=(gsurl,))
     t.start()
     time.sleep(1)
 
-for url in targetlist:
-    t = Thread(target=targetfunc, args=(url,))
-    t.start()
-    time.sleep(0.5)
-
-for url in bhlist:
-    t = Thread(target=bhfunc, args=(url,))
-    t.start()
-    time.sleep(0.5)
 
 for sku in bestbuylist:
     t = Thread(target=bestbuyfunc, args=(sku,))
     t.start()
     time.sleep(0.5)
 
-for url in walmartlist:
-    t = Thread(target=walmartfunc, args=(url,))
-    t.start()
-    time.sleep(0.5)
 
+def main():
+    # Add generic support for more websites
+    for url in urldict:
+        func, store = GetFuncFromURL(url)
+        if func is not None:
+            thread = Thread(target=ThreadFunc, args=(url, store, func))
+            thread.start()
+            time.sleep(0.5)
+
+
+main()
 log("Finished Starting Product Tracker!")
