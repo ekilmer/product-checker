@@ -2,7 +2,6 @@
 # by Tyler Woods
 # coded for Bird Bot and friends
 # https://tylermade.net
-import typing
 from typing import Any
 
 import requests
@@ -13,7 +12,6 @@ import urllib.parse as urlparse
 from urllib.parse import parse_qs
 from threading import Thread, Semaphore
 from random import randint
-from lxml import html
 from selenium import webdriver
 from chromedriver_py import binary_path as driver_path
 from sys import platform
@@ -167,9 +165,7 @@ def target_checker(resp: requests.Response) -> str:
 
 def walmart_checker(resp: requests.Response) -> str:
     if "Add to cart" in resp.text:
-        tree = html.fromstring(resp.content)
-        title_raw = tree.xpath("//h1[@class='prod-ProductTitle font-normal']")
-        return title_raw[0].text
+        return "Something"
     return ""
 
 
@@ -181,6 +177,7 @@ def bh_checker(resp: requests.Response) -> str:
 
 # ThreadFunc takes a URL and a CheckerFunc
 def ThreadFunc(url: str, store: str, checker):
+    hook = urldict[url]
     webhook_url = webhook_dict[hook]
     while True:
         try:
@@ -209,7 +206,7 @@ def GetFuncFromURL(url: str):
         return walmart_checker, "Walmart"
     elif "bhphotovideo.com" in url:
         return bh_checker, "B&H"
-    return None
+    return None, None
 
 
 def amzfunc(url):
