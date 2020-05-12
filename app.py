@@ -39,7 +39,7 @@ if platform == "linux":
 # Limit the number of chromedriver instances to not starve the Pi of resources
 chromedriver_semphabore = Semaphore(concurrent_chromedriver_instances)
 
-ITEM_FOUND_TIMEOUT = 60 * 60 * 6  # 3 hours
+ITEM_FOUND_TIMEOUT = 60 * 60 * 6  # 6 hours
 THREAD_JITTER = 15
 CHECK_INTERVAL = 30  # Check once every [30-45s]
 
@@ -250,63 +250,46 @@ def bestbuyfunc(sku):
             log("Some error ocurred parsing Best Buy: ", e)
             time.sleep(CHECK_INTERVAL)
 
+def parse_urls():
+    for url in urldict:
+        hook = urldict[url]  # get the hook for the url so it can be passed in to the per-site lists being generated below
 
-for url in urldict:
-    hook = urldict[url]  # get the hook for the url so it can be passed in to the per-site lists being generated below
+        # Amazon URL Detection
+        if "amazon.com" in url:
+            if "offer-listing" in url:
+                amazonlist.append(url)
+            else:
+                print("Invalid Amazon link detected. Please use the Offer Listing page.")
 
-    # Amazon URL Detection
-    if "amazon.com" in url:
-        if "offer-listing" in url:
-            amazonlist.append(url)
-        else:
-            print("Invalid Amazon link detected. Please use the Offer Listing page.")
+        # Gamestop URL Detection
+        elif "gamestop.com" in url:
+            gamestoplist.append(url)
 
-    # Gamestop URL Detection
-    elif "gamestop.com" in url:
-        gamestoplist.append(url)
-
-    # BestBuy URL Detection
-    elif "bestbuy.com" in url:
-        parsed = urlparse.urlparse(url)
-        sku = parse_qs(parsed.query)['skuId']
-        sku = sku[0]
-        bestbuylist.append(sku)
-        headers = {
-            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,"
-                      "application/signed-exchange;v=b3;q=0.9",
-            "accept-encoding": "gzip, deflate, br",
-            "accept-language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
-            "cache-control": "max-age=0",
-            "upgrade-insecure-requests": "1",
-            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) "
-                          "Chrome/81.0.4044.69 Safari/537.36 "
-        }
-        page = requests.get(url, headers=headers)
-        al = page.text
-        title = al[al.find('<title >') + 8: al.find(' - Best Buy</title>')]
-        sku_dict.update({sku: title})
-        bbdict.update({sku: hook})
-
-# MAIN EXECUTION
-log("Starting Product Tracker!")
-for amzurl in amazonlist:
-    t = Thread(target=amzfunc, args=(amzurl,))
-    t.start()
-    time.sleep(0.5)
-
-for gsurl in gamestoplist:
-    t = Thread(target=gamestopfunc, args=(gsurl,))
-    t.start()
-    time.sleep(1)
-
-
-for sku in bestbuylist:
-    t = Thread(target=bestbuyfunc, args=(sku,))
-    t.start()
-    time.sleep(0.5)
-
+        # BestBuy URL Detection
+        elif "bestbuy.com" in url:
+            parsed = urlparse.urlparse(url)
+            sku = parse_qs(parsed.query)['skuId']
+            sku = sku[0]
+            bestbuylist.append(sku)
+            headers = {
+                "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,"
+                          "application/signed-exchange;v=b3;q=0.9",
+                "accept-encoding": "gzip, deflate, br",
+                "accept-language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
+                "cache-control": "max-age=0",
+                "upgrade-insecure-requests": "1",
+                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) "
+                              "Chrome/81.0.4044.69 Safari/537.36 "
+            }
+            page = requests.get(url, headers=headers)
+            al = page.text
+            title = al[al.find('<title >') + 8: al.find(' - Best Buy</title>')]
+            sku_dict.update({sku: title})
+            bbdict.update({sku: hook})
 
 def main():
+    parse_urls()
+    log("Starting Product Tracker!")
     # Add generic support for more websites
     for url in urldict:
         func, store = GetFuncFromURL(url)
@@ -314,7 +297,21 @@ def main():
             thread = Thread(target=ThreadFunc, args=(url, store, func))
             thread.start()
             time.sleep(0.5)
+    for amzurl in amazonlist:
+        t = Thread(target=amzfunc, args=(amzurl,))
+        t.start()
+        time.sleep(0.5)
+
+    for gsurl in gamestoplist:
+        t = Thread(target=gamestopfunc, args=(gsurl,))
+        t.start()
+        time.sleep(1)
+
+    for sku in bestbuylist:
+        t = Thread(target=bestbuyfunc, args=(sku,))
+        t.start()
+        time.sleep(0.5)
+    log("Finished Starting Product Tracker!")
 
 
 main()
-log("Finished Starting Product Tracker!")
