@@ -43,7 +43,7 @@ CHECK_INTERVAL = 30  # Check once every [30-45s]
 
 
 def log(msg: Any, *msgv):
-    print("[" + datetime.now().strftime("%H:%M:%S") + "]", msg, msgv)
+    print("[" + datetime.now().strftime("%m/%d %H:%M:%S") + "]", msg, msgv)
 
 
 def return_data(path):
