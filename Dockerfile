@@ -1,4 +1,4 @@
-FROM python:3.7-slim
+FROM python:3.7-slim-buster
 COPY . /
 WORKDIR /
 RUN apk add --update --no-cache --virtual .build-deps \
