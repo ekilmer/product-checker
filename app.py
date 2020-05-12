@@ -3,7 +3,7 @@
 # coded for Bird Bot and friends
 # https://tylermade.net
 import typing
-from typing import Any, Union
+from typing import Any
 
 import requests
 import time
@@ -250,6 +250,7 @@ def bestbuyfunc(sku):
             log("Some error ocurred parsing Best Buy: ", e)
             time.sleep(CHECK_INTERVAL)
 
+
 def parse_urls():
     for url in urldict:
         hook = urldict[url]  # get the hook for the url so it can be passed in to the per-site lists being generated below
@@ -286,6 +287,7 @@ def parse_urls():
             title = al[al.find('<title >') + 8: al.find(' - Best Buy</title>')]
             sku_dict.update({sku: title})
             bbdict.update({sku: hook})
+
 
 def main():
     parse_urls()
