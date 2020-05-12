@@ -1,12 +1,10 @@
 FROM python:3.7-slim-buster
 COPY . /
 WORKDIR /
-RUN apt-get install \
-        g++ \
-        python-dev \
-        libxml2 \
-        libxml2-dev
-RUN apt-get install libxslt-dev
+RUN apt-get update
+RUN apt-get install -y build-essential python3-lxml --no-install-recommend
+RUN apt-get purge -y --auto-remove build-essential
+RUN apt-get clean
 RUN pip install -r requirements.txt
 ENTRYPOINT [ "python3.7" ]
 CMD [ "app.py" ]
