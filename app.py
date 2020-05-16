@@ -157,7 +157,8 @@ def BestBuy(sku, hook):
 # A CheckerFunc take a page and returns the item title if the item is in stock
 def target_checker(resp: requests.Response) -> str:
     page = resp.text
-    if '"is_out_of_stock_in_all_online_locations":false' in page:
+    status = page[page.find('"availability_status":"') + 23 : page.find('","multichannel_options"')]
+    if status == "IN_STOCK":
         title = page[page.find('"twitter":{"title":') + 20: page.find('","card')]
         return title
     return ""
