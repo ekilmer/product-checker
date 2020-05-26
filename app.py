@@ -37,7 +37,7 @@ if platform == "linux":
 # Limit the number of chromedriver instances to not starve the Pi of resources
 chromedriver_semphabore = Semaphore(concurrent_chromedriver_instances)
 
-ITEM_FOUND_TIMEOUT = 60 * 60 * 3  # 3 hours
+ITEM_FOUND_TIMEOUT = 60 * 60 * 6  # 3 hours
 THREAD_JITTER = 15
 CHECK_INTERVAL = 15  # Check once every [15-30s]
 
