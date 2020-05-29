@@ -192,7 +192,7 @@ def ThreadFunc(url: str, store: str, checker):
                 else:
                     time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
             else:
-                log("Non 200 status code: ", page.status_code)
+                log(f'Non 200 status code: {page.status_code} for {url} due to {page.content}')
                 time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
         except Exception as e:
             log("Some error ocurred: ", e)
