@@ -68,10 +68,18 @@ def return_data(path):
 webhook_dict = return_data("./data/webhooks.json")
 urldict = return_data("./data/products.json")
 
+def format_slack_message(data: dict):
+    return "\n".join([f"{key}: {val}" for key, val in data.items()])
 
 def post_webhook(webhook_url: str, slack_data: dict):
+    # Discord
+    # data = json.dumps({'content': "Item is in Stock!", 'username': 'ProductChecker', 'embeds': [slack_data]})
+
+    #Slack compat
+    data = json.dumps({'text': format_slack_message(slack_data)})
+
     p = requests.post(
-        webhook_url, data=json.dumps({'content': "Item is in Stock!", 'username': 'ProductChecker', 'embeds': [slack_data]}),
+        webhook_url, data=data,
         headers={'Content-Type': 'application/json'}, )
     print(p.text)
 
