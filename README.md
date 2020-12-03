@@ -27,7 +27,12 @@ If you used birdbot you should already have these installed, aside from wxpython
 
 Simply `git clone` or download ZIP of this repository and navigate to the root of "product-checker-master".
 
+- First, you need to edit webhooks to add your Webhook URLs and give them friendly names `data/webhooks.json`.
+- Then, you need to edit product URLs to add products to track and assign them a webhook destination via friendly name `data/products.json`.
+
 Execute `python app.py`
+
+# **UNTESTED PAST THIS POINT**
 
 When you launch the script you will be given a menu:
 
