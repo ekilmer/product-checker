@@ -7,6 +7,7 @@ from typing import Any
 import requests
 import time
 import json
+from bs4 import BeautifulSoup, SoupStrainer
 from datetime import datetime
 import urllib.parse as urlparse
 from urllib.parse import parse_qs
@@ -27,6 +28,7 @@ bhlist = []
 bbdict = {}
 amazonlist = []
 gamestoplist = []
+newegglist = []
 
 chromedriver_path = driver_path
 concurrent_chromedriver_instances = cpu_count()
@@ -38,9 +40,19 @@ if platform == "linux":
 chromedriver_semphabore = Semaphore(concurrent_chromedriver_instances)
 
 ITEM_FOUND_TIMEOUT = 60 * 60 * 6  # 3 hours
-THREAD_JITTER = 15
-CHECK_INTERVAL = 15  # Check once every [15-30s]
+THREAD_JITTER = 60
+CHECK_INTERVAL = 30  # Check once every [30-45s]
 
+USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.183 Safari/537.36"
+HEADERS = {
+        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,"
+                  "application/signed-exchange;v=b3;q=0.9",
+        "accept-encoding": "gzip, deflate, br",
+        "accept-language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
+        "cache-control": "max-age=0",
+        "upgrade-insecure-requests": "1",
+        "user-agent": USER_AGENT
+        }
 
 def log(msg: Any, *msgv):
     print("[" + datetime.now().strftime("%m/%d %H:%M:%S") + "]", msg, msgv)
@@ -58,9 +70,10 @@ urldict = return_data("./data/products.json")
 
 
 def post_webhook(webhook_url: str, slack_data: dict):
-    requests.post(
-        webhook_url, data=json.dumps(slack_data),
-        headers={'Content-Type': 'application/json'})
+    p = requests.post(
+        webhook_url, data=json.dumps({'content': "Item is in Stock!", 'username': 'ProductChecker', 'embeds': [slack_data]}),
+        headers={'Content-Type': 'application/json'}, )
+    print(p.text)
 
 
 def get_driver() -> WebDriver:
@@ -69,8 +82,7 @@ def get_driver() -> WebDriver:
     options.add_argument('log-level=3')
     options.add_argument('--ignore-certificate-errors')
     options.add_argument(
-        '--user-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 '
-        'Safari/537.36"')
+        f'--user-agent="{USER_AGENT}"')
     options.add_argument("headless")
     if platform == "linux":
         options.add_argument("--no-sandbox")
@@ -98,9 +110,11 @@ def Amazon(url, hook):
         title = title_raw.text
         driver.quit()
         if "Currently, there are no sellers that can deliver this item to your location." not in status_text:
-            slack_data = {'value1': "Amazon", 'value2': url, 'value3': title}
+            slack_data = {'title': title, 'url': url, 'description': "Amazon"}
             post_webhook(webhook_url, slack_data)
+            log(f"Found in Amazon stock: {title}")
             return True
+        log(f"Did not find in Amazon stock: {title}")
         return False
 
 
@@ -118,7 +132,7 @@ def Gamestop(url, hook):
     title = title_raw.text
     driver.quit()
     if "ADD TO CART" in status_text:
-        slack_data = {'value1': "Gamestop", 'value2': url, 'value3': title}
+        slack_data = {'title': title, 'url': url, 'description': "Gamestop"}
         post_webhook(webhook_url, slack_data)
         return True
     return False
@@ -131,28 +145,44 @@ def BestBuy(sku, hook):
           "%2C%22buttonstate%22%2C%22v5%22%2C%22item%22%2C%22skus%22%2C" + sku + \
           "%2C%22conditions%22%2C%22NONE%22%2C%22destinationZipCode%22%2C%22%2520%22%2C%22storeId%22%2C%22%2520%22%2C" \
           "%22context%22%2C%22cyp%22%2C%22addAll%22%2C%22false%22%5D%5D&method=get "
-    headers2 = {
-        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,"
-                  "application/signed-exchange;v=b3;q=0.9",
-        "accept-encoding": "gzip, deflate, br",
-        "accept-language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
-        "cache-control": "max-age=0",
-        "upgrade-insecure-requests": "1",
-        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/81.0.4044.69 Safari/537.36 "
-    }
-    page = requests.get(url, headers=headers2)
+    page = requests.get(url, headers=HEADERS)
     link = "https://www.bestbuy.com/site/" + sku + ".p?skuId=" + sku
     al = page.text
     search_string = '"skuId":"' + sku + '","buttonState":"'
     stock_status = al[al.find(search_string) + 33: al.find('","displayText"')]
     product_name = sku_dict.get(sku)
     if stock_status == "ADD_TO_CART":
-        slack_data = {'value1': "Best Buy", 'value2': link, 'value3': product_name}
+        slack_data = {'title': product_name, 'url': link, 'description': "BestBuy"}
         post_webhook(webhook_url, slack_data)
+        log(f"Found in Bestbuy stock: {product_name}")
         return True
+    log(f"Did not find in Bestbuy stock: {product_name}")
     return False
 
+def Newegg(url, hook):
+    webhook_url = webhook_dict[hook]
+    page = requests.get(url, headers=HEADERS)
+    buy_section = BeautifulSoup(page.text, 'lxml', parse_only=SoupStrainer(id='ProductBuy'))
+
+    product_title = BeautifulSoup(page.text, 'lxml', parse_only=SoupStrainer(class_='product-title'))
+    if not product_title:
+        log("Newegg could not parse product name")
+        product_title = "NEWEGG ITEM"
+    else:
+        product_title = product_title.text
+    
+    if buy_section:
+        if 'Add to cart' in buy_section.text:
+            log(f"NEWEGG IN STOCK: {product_title}")
+            slack_data = {'title': product_title, 'url': page.url, 'description': "Newegg"}
+            post_webhook(webhook_url, slack_data)
+            return True
+        else:  
+            log(f"Did not find in Newegg stock: {product_title}")
+    else:
+        slack_data = {'title': f'ERROR: {product_title}',  'url': url, 'description': "No Newegg buy section found!!"}
+        post_webhook(webhook_url, slack_data)
+    return False
 
 # A CheckerFunc take a page and returns the item title if the item is in stock
 def target_checker(resp: requests.Response) -> str:
@@ -170,9 +200,20 @@ def walmart_checker(resp: requests.Response) -> str:
     return ""
 
 
-def bh_checker(resp: requests.Response) -> str:
-    if "Add to Cart" in resp.text:
-        return "An item"
+def bh_checker(page: requests.Response) -> str:
+    product_name_section = BeautifulSoup(page.text, 'lxml', parse_only=SoupStrainer('h1', {'data-selenium': 'productTitle'}))
+
+    product_name = "B&H ITEM UNKNOWN"
+    if product_name_section:
+        product_name = product_name_section.text
+    else:
+        log(f"Cannot find product name for B&H URL: {page.url}")
+
+    buy_section = BeautifulSoup(page.text, 'lxml', parse_only=SoupStrainer('button', {'data-selenium': 'addToCartButton'}))
+    if buy_section.text:
+        return product_name
+
+    log(f"Did not find in B&H stock: {product_name}")
     return ""
 
 
@@ -186,7 +227,7 @@ def ThreadFunc(url: str, store: str, checker):
             if page.status_code == 200:
                 title = checker(page)
                 if title != "":
-                    slack_data = {'value1': store, 'value2': url, 'value3': title}
+                    slack_data = {'title': title, 'url': url, 'description': store}
                     post_webhook(webhook_url, slack_data)
                     time.sleep(ITEM_FOUND_TIMEOUT)
                 else:
@@ -236,6 +277,19 @@ def gamestopfunc(url):
             time.sleep(CHECK_INTERVAL)
 
 
+def neweggfunc(url):
+    while True:
+        hook = urldict[url]
+        try:
+            if Newegg(url, hook):
+                time.sleep(ITEM_FOUND_TIMEOUT)
+            else:
+                time.sleep(CHECK_INTERVAL + randint(0, THREAD_JITTER))
+        except Exception as e:
+            log("Some error ocurred parsing Newegg: ", e)
+            time.sleep(CHECK_INTERVAL)
+
+
 def bestbuyfunc(sku):
     while True:
         hook = bbdict[sku]
@@ -270,26 +324,21 @@ def parse_urls():
             sku = parse_qs(parsed.query)['skuId']
             sku = sku[0]
             bestbuylist.append(sku)
-            headers = {
-                "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,"
-                          "application/signed-exchange;v=b3;q=0.9",
-                "accept-encoding": "gzip, deflate, br",
-                "accept-language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
-                "cache-control": "max-age=0",
-                "upgrade-insecure-requests": "1",
-                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) "
-                              "Chrome/81.0.4044.69 Safari/537.36 "
-            }
-            page = requests.get(url, headers=headers)
+            page = requests.get(url, headers=HEADERS)
             al = page.text
             title = al[al.find('<title >') + 8: al.find(' - Best Buy</title>')]
             sku_dict.update({sku: title})
             bbdict.update({sku: hook})
 
+        # Newegg URL Detection
+        elif "newegg.com" in url:
+            newegglist.append(url)
+
 
 def main():
     parse_urls()
     log("Starting Product Tracker!")
+
     # Add generic support for more websites
     for url in urldict:
         func, store = GetFuncFromURL(url)
@@ -305,7 +354,12 @@ def main():
     for gsurl in gamestoplist:
         t = Thread(target=gamestopfunc, args=(gsurl,))
         t.start()
-        time.sleep(1)
+        time.sleep(0.5)
+    
+    for newegg_url in newegglist:
+        t = Thread(target=neweggfunc, args=(newegg_url,))
+        t.start()
+        time.sleep(0.5)
 
     for sku in bestbuylist:
         t = Thread(target=bestbuyfunc, args=(sku,))

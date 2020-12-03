@@ -1,21 +1,9 @@
 {
-  "https://www.bestbuy.com/site/nintendo-switch-32gb-lite-coral/6257148.p?skuId=6257148": "IFTT",
-  "https://www.bestbuy.com/site/nintendo-switch-32gb-console-neon-red-neon-blue-joy-con/6364255.p?skuId=6364255": "IFTT",
-  "https://www.bestbuy.com/site/nintendo-switch-32gb-console-gray-joy-con/6364253.p?skuId=6364253": "IFTT",
-  "https://www.bestbuy.com/site/bowflex-selecttech-552-adjustable-dumbbells-black/5845062.p?skuId=5845062": "IFTT",
-  "https://www.bestbuy.com/site/ring-fit-adventure-nintendo-switch/6352149.p?skuId=6352149": "IFTT",
-  "https://www.bestbuy.com/site/elgato-cam-link-4k-black/6316580.p?skuId=6316580": "IFTT",
-  "https://www.bestbuy.com/site/nordictrack-55-lb-select-a-weight-adjustable-dumbbell-pair-blue-black/6343462.p?skuId=6343462": "IFTT",
-  "https://www.bestbuy.com/site/oculus-quest-all-in-one-vr-gaming-headset-64gb-black/6342914.p?skuId=6342914": "IFTT",
-  "https://www.bestbuy.com/site/oculus-quest-all-in-one-vr-gaming-headset-128gb-black/6342915.p?skuId=6342915": "IFTT",
+  "https://www.bestbuy.com/site/amd-ryzen-9-5900x-4th-gen-12-core-24-threads-unlocked-desktop-processor-without-cooler/6438942.p?skuId=6438942": "Zen3",
 
-  "https://www.target.com/p/nintendo-switch-with-neon-blue-and-neon-red-joy-con/-/A-77464001": "IFTT",
-  "https://www.target.com/p/nintendo-switch-with-gray-joy-con/-/A-77464002": "IFTT",
-  "https://www.target.com/p/nintendo-switch-lite-coral/-/A-79574296": "IFTT",
-  "https://www.target.com/p/ring-fit-adventure-nintendo-switch/-/A-76593324": "IFTT",
+  "https://www.bhphotovideo.com/c/product/1598373-REG/amd_100_100000061wof_ryzen_9_5900x_3_7.html": "Zen3",
 
-  "https://www.bhphotovideo.com/c/product/1496115-REG/nintendo_hadskaaaa_switch_with_gray_controllers.html": "IFTT",
-  "https://www.bhphotovideo.com/c/product/1496116-REG/nintendo_hadskabaa_switch_with_neon_blue.html": "IFTT",
-  "https://www.bhphotovideo.com/c/product/1506841-REG/nintendo_hacral3pa_ring_fit_adventure_nintendo.html": "IFTT",
-  "https://www.bhphotovideo.com/c/product/1453840-REG/elgato_systems_10gam9901_cam_link_4k_game.html": "IFTT"
+  "https://www.amazon.com/gp/offer-listing/B08164VTWH": "Zen3",
+
+  "https://www.newegg.com/amd-ryzen-9-5900x/p/N82E16819113664": "Zen3"
 }

@@ -1,0 +1,18 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+requests = "*"
+selenium = "*"
+chromedriver-py = "==86.0.4240.22"
+Scrapy = "*"
+beautifulsoup4 = "*"
+lxml = "*"
+cchardet = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.9"

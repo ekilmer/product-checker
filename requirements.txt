@@ -1,3 +1,6 @@
 requests
 selenium
-chromedriver-py
+chromedriver-py==86.0.4240.22
+beautifulsoup4
+lxml
+cchardet
